@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# secrets (NEVER commit)
+.env
+.env.local
+
+# Playwright artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.playwright-mcp/
+
+# TypeScript build
+dist/
+
+# editor / OS
+.DS_Store
+*.log
+*.bak
+
+# personal notes (kept local, not part of the public portfolio repo)
+YouTube_plan.txt
+PLAN_MCP_AiAgent_PLAYWRIGHT.txt
+ХОД_РАБОТЫ.txt
