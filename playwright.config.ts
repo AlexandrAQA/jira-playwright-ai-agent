@@ -22,6 +22,28 @@ export default defineConfig({
     baseURL: 'https://www.saucedemo.com',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Suppress Chrome password-manager popups during headed/demo runs, e.g. the
+    // "Change your password / found in a data breach" bubble that Chrome shows for
+    // the public secret_sauce password. Unknown feature names are ignored by Chromium.
+    launchOptions: {
+      args: [
+        '--disable-features=PasswordLeakDetection,PasswordLeakToggleMove,AutofillServerCommunication,CredentialManagerAPI',
+        '--disable-save-password-bubble',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-extensions',
+        '--disable-sync',
+        '--disable-default-apps',
+        '--disable-plugins',
+        '--disable-preconnect',
+        '--disable-background-networking',
+        '--disable-breakpad',
+        '--disable-client-side-phishing-detection',
+        '--disable-component-extensions-with-background-pages',
+        '--disable-popup-blocking',
+        '--disable-credentials-api',
+      ],
+    },
   },
   projects: [
     {

@@ -1,0 +1,12 @@
+{
+  "browser": {
+    "launchOptions": {
+      "args": [
+        "--disable-features=PasswordLeakDetection,PasswordLeakToggleMove,AutofillServerCommunication",
+        "--disable-save-password-bubble",
+        "--no-first-run",
+        "--no-default-browser-check"
+      ]
+    }
+  }
+}

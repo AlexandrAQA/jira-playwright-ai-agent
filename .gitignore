@@ -24,3 +24,12 @@ dist/
 YouTube_plan.txt
 PLAN_MCP_AiAgent_PLAYWRIGHT.txt
 ХОД_РАБОТЫ.txt
+
+# local Claude settings (per-machine)
+.claude/settings.local.json
+
+# raw recording assets (kept local, too heavy for git)
+gif_video/
+*.mp4
+agent_jira_playwright.gif
+agent_bad.gif

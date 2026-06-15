@@ -7,6 +7,10 @@ ticket across the board. A human stays in the loop for irreversible actions.
 
 Target app under test: [SauceDemo](https://www.saucedemo.com).
 
+## Demo
+
+> A short screen capture of a full run (Jira ticket -> generated test -> green -> ticket closed) will be added here.
+
 ## Architecture
 
 | Role | Component | Responsibility |
@@ -43,9 +47,12 @@ from the ticket text, it opens the real page and picks real selectors.
 ```bash
 npm install
 npx playwright install chromium
-claude mcp add playwright --scope project -- npx @playwright/mcp@latest
 cp .env.example .env   # then fill in your Jira values
 ```
+
+The Playwright MCP server is already declared in `.mcp.json` (it points to
+`playwright-mcp.config.json` for the browser launch flags), so Claude Code picks it up
+automatically when you open this folder.
 
 Required `.env` values: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`.
 Create the API token at `id.atlassian.com -> Security -> Create API token`.
@@ -97,6 +104,7 @@ This is the polling variant of the trigger; a Jira webhook would be the event-dr
 
 ```text
 .mcp.json                Playwright MCP server definition
+playwright-mcp.config.json  browser launch flags for the MCP server
 .env / .env.example      secrets (env) and template
 playwright.config.ts     Playwright config (chromium, reporters, baseURL)
 CLAUDE.md                agent playbook (read automatically by Claude Code)
