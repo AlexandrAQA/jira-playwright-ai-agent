@@ -28,7 +28,8 @@ PLAN_MCP_AiAgent_PLAYWRIGHT.txt
 # local Claude settings (per-machine)
 .claude/settings.local.json
 
-# raw recording assets (kept local, too heavy for git)
+# raw recording assets and internal notes (kept local, not part of the public repo)
+docs_gif_video/
 gif_video/
 *.mp4
 agent_jira_playwright.gif
