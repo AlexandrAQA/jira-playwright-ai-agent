@@ -1,5 +1,7 @@
 # AI QA Agent: Jira -> Playwright -> Jira
 
+[![tests](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml)
+
 An AI agent that turns a Jira ticket into a passing end-to-end test, hands-free.
 It reads a ticket, explores the web app through a real browser, generates and runs a
 Playwright test, makes it green, then writes the result back to Jira and moves the
@@ -9,7 +11,7 @@ Target app under test: [SauceDemo](https://www.saucedemo.com).
 
 ## Demo
 
-> A short screen capture of a full run (Jira ticket -> generated test -> green -> ticket closed) will be added here.
+![Full run: a Jira ticket becomes a green Playwright test and the ticket is closed](docs/demo.gif)
 
 ## Architecture
 
