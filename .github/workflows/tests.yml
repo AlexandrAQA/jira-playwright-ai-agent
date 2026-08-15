@@ -117,30 +117,6 @@ jobs:
           path: test-results/
           retention-days: 7
 
-  # Publish the HTML report so the latest result is a link anyone can open,
-  # instead of a zip that has to be downloaded and unpacked. Only from main:
-  # a pull request must not be able to overwrite the published report.
-  publish-report:
-    needs: e2e
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report
-
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: playwright-report
-
-      - id: deploy
-        uses: actions/deploy-pages@v4
+  # Publishing the report lives in .github/workflows/report.yml, on purpose:
+  # this workflow's badge has to mean "the tests pass". A failure to publish an
+  # HTML report is not a test failure and must not be able to claim it is.

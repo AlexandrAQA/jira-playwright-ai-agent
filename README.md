@@ -1,7 +1,7 @@
 # AI QA Agent: Jira -> Playwright -> Jira
 
 [![tests](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml)
-[![report](https://img.shields.io/badge/latest%20report-open-blue)](https://alexandraqa.github.io/jira-playwright-ai-agent/)
+[![report](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/report.yml/badge.svg)](https://alexandraqa.github.io/jira-playwright-ai-agent/)
 
 **A Jira ticket goes in. A passing Playwright test comes out, and the ticket closes itself.**
 

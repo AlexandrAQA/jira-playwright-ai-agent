@@ -1,0 +1,50 @@
+name: report
+
+# Publish the HTML report so the latest result is a link anyone can open rather
+# than a zip to download and unpack.
+#
+# Deliberately a separate workflow rather than a job inside `tests`. The badge in
+# the README has to mean "the tests pass"; a failure to publish a report is not a
+# test failure and must not be able to turn that badge red. It also runs only
+# after a successful run on main, so a pull request cannot overwrite what is
+# published.
+on:
+  workflow_run:
+    workflows: [tests]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      # Reading the artifact produced by the other workflow run.
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Fetch the report from the test run
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Fails until Pages is enabled for the repository with
+      # Settings -> Pages -> Source: GitHub Actions.
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
