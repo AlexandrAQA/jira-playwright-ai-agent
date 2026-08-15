@@ -34,3 +34,6 @@ gif_video/
 *.mp4
 agent_jira_playwright.gif
 agent_bad.gif
+
+# raw payload of the last measured agent run, kept for debugging only
+metrics/last-run.json

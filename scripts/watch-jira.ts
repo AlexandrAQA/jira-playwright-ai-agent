@@ -30,6 +30,9 @@ const ONESHOT = process.env.WATCH_ONESHOT === '1'; // run one cycle then exit (f
 const MODEL = process.env.WATCH_MODEL || 'haiku'; // model for the autonomous agent (haiku | sonnet | opus)
 const PROJECT_KEY = process.env.JIRA_PROJECT_KEY || 'AIQA';
 
+/** The npm shim is `claude.cmd` on Windows. Spawned without a shell, see below. */
+const CLAUDE_BIN = process.platform === 'win32' ? 'claude.cmd' : 'claude';
+
 // Tickets we already handed to the agent in this run (avoids double-trigger while
 // the agent is still working, before it moves the ticket out of "To Do").
 const processed = new Set<string>();
@@ -62,7 +65,10 @@ function runAgent(key: string): Promise<void> {
     }
 
     log(`running agent on ${key} ...`);
-    const child = spawn('claude', args, { stdio: 'inherit', shell: true });
+    // No shell: with `shell: true` Node concatenates arguments instead of
+    // escaping them, so the prompt is split on its spaces and the agent gets
+    // nonsense. On Windows the npm shim is claude.cmd.
+    const child = spawn(CLAUDE_BIN, args, { stdio: ['ignore', 'inherit', 'inherit'] });
     child.on('exit', (code) => {
       log(`agent on ${key} finished (exit ${code})`);
       resolve();

@@ -80,6 +80,10 @@ export function parseAgentResult(raw: string): {
   numTurns: number;
   costUsd: number;
   usage: TokenUsage;
+  /** The agent's own verdict. A zero exit code does not imply this is false. */
+  isError: boolean;
+  /** What the agent said. The only clue available when a run did nothing. */
+  text: string;
 } {
   let parsed: unknown;
   try {
@@ -105,6 +109,8 @@ export function parseAgentResult(raw: string): {
       cacheCreation: num(usageSource, 'cache_creation_input_tokens'),
       cacheRead: num(usageSource, 'cache_read_input_tokens'),
     },
+    isError: root.is_error === true,
+    text: typeof root.result === 'string' ? root.result : '',
   };
 }
 

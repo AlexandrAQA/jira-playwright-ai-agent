@@ -71,6 +71,16 @@ test.describe('parseAgentResult', () => {
     expect(totalTokens(parsed.usage)).toBe(3700);
   });
 
+  test('surfaces the agent verdict and its text', () => {
+    // A zero exit code once recorded a run that did nothing as "passed". These
+    // two fields are what make that distinguishable.
+    const parsed = parseAgentResult(
+      JSON.stringify({ is_error: true, result: 'I could not find the ticket.' }),
+    );
+    expect(parsed.isError).toBe(true);
+    expect(parsed.text).toBe('I could not find the ticket.');
+  });
+
   test('turns malformed output into zeros rather than throwing', () => {
     // Losing a measurement must never fail an otherwise good agent run.
     const parsed = parseAgentResult('not json at all');

@@ -17,6 +17,8 @@
  * ---------------------------------------------------------------------------
  */
 import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import 'dotenv/config';
 
 import {
@@ -26,6 +28,17 @@ import {
   type Strategy,
   totalTokens,
 } from '../src/metrics';
+
+/**
+ * Never spawn this through a shell.
+ *
+ * With `shell: true` Node concatenates the arguments instead of escaping them,
+ * so a prompt containing spaces is split into separate arguments and the agent
+ * receives nonsense. That is exactly what DEP0190 warns about, and it cost one
+ * measured run that reported success while doing nothing at all. On Windows the
+ * npm shim is `claude.cmd`, which spawns fine without a shell.
+ */
+const CLAUDE_BIN = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 
 interface Options {
   ticket: string;
@@ -94,18 +107,40 @@ function run(options: Options): void {
     return;
   }
 
+  const specPath = join(
+    __dirname,
+    '..',
+    'tests',
+    'generated',
+    `${options.ticket.toLowerCase()}.spec.ts`,
+  );
+
   const startedAt = Date.now();
-  const child = spawn('claude', args, { shell: true });
+  // stdin is closed rather than left as an open pipe: the CLI otherwise waits
+  // for input it will never get and reports "no stdin data received in 3s".
+  const child = spawn(CLAUDE_BIN, args, { stdio: ['ignore', 'pipe', 'inherit'] });
 
   let stdout = '';
   child.stdout.on('data', (chunk: Buffer) => {
     stdout += chunk.toString();
   });
-  // The agent's own progress output belongs on the terminal, not in the record.
-  child.stderr.on('data', (chunk: Buffer) => process.stderr.write(chunk));
+
+  child.on('error', (err) => {
+    console.error(`Could not start ${CLAUDE_BIN}: ${err.message}`);
+    process.exit(1);
+  });
 
   child.on('exit', (code) => {
     const parsed = parseAgentResult(stdout);
+
+    // Keep the raw payload for the next time a run looks wrong.
+    mkdirSync(join(__dirname, '..', 'metrics'), { recursive: true });
+    writeFileSync(join(__dirname, '..', 'metrics', 'last-run.json'), stdout, 'utf8');
+
+    // A zero exit code proves the process ended, not that the work happened.
+    // The workflow's actual product is the spec file, so that is what decides.
+    const producedSpec = existsSync(specPath);
+    const succeeded = code === 0 && !parsed.isError && producedSpec;
 
     const record: RunRecord = {
       ticket: options.ticket,
@@ -117,7 +152,7 @@ function run(options: Options): void {
       numTurns: parsed.numTurns,
       usage: parsed.usage,
       costUsd: parsed.costUsd,
-      result: code === 0 ? 'passed' : 'failed',
+      result: succeeded ? 'passed' : 'failed',
     };
 
     appendRun(record);
@@ -130,12 +165,25 @@ function run(options: Options): void {
           `  cost $${record.costUsd.toFixed(4)}` +
           `  turns ${record.numTurns}` +
           `  ${(record.durationMs / 1000).toFixed(1)}s`,
-        '',
-        'Regenerate the README table with: npm run metrics',
       ].join('\n'),
     );
 
-    process.exit(code ?? 0);
+    if (!succeeded) {
+      console.log(
+        [
+          '',
+          'This run did NOT produce a test. What the agent reported:',
+          '',
+          parsed.text.trim() || '(no text in the result; see metrics/last-run.json)',
+          '',
+          `Expected file: tests/generated/${options.ticket.toLowerCase()}.spec.ts`,
+        ].join('\n'),
+      );
+    } else {
+      console.log('\nRegenerate the README table with: npm run metrics -- --write');
+    }
+
+    process.exit(succeeded ? 0 : 1);
   });
 }
 
