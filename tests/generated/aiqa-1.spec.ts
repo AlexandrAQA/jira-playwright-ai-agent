@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 
 // Credentials come from .env (loaded via dotenv in playwright.config.ts). Never hardcode.
 const USER = process.env.SAUCE_USER!;
@@ -18,6 +18,6 @@ test('AIQA-1: login with standard_user lands on the inventory page', async ({ pa
 
   await test.step('Verify redirect to the inventory page', async () => {
     await expect(page).toHaveURL(/inventory\.html/);
-    await expect(page.locator('.inventory_list')).toBeVisible();
+    await expect(page.locator('[data-test="inventory-list"]')).toBeVisible();
   });
 });

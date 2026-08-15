@@ -20,6 +20,10 @@ jobs:
 
       - run: npm ci
 
+      # Quality gate for agent-generated tests. Runs before the browsers are
+      # installed, so a worthless-but-green test fails the build in seconds.
+      - run: npm run lint:tests
+
       - run: npx playwright install --with-deps chromium
 
       - run: npx playwright test

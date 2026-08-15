@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 
 test.describe('AIQA-5: Remove a product from the cart', () => {
   test.beforeEach(async ({ page }) => {
@@ -6,8 +6,8 @@ test.describe('AIQA-5: Remove a product from the cart', () => {
     await page.goto('/');
 
     // Log in as standard_user
-    await page.locator('[data-test="username"]').fill(process.env.SAUCE_USER || 'standard_user');
-    await page.locator('[data-test="password"]').fill(process.env.SAUCE_PASSWORD || 'secret_sauce');
+    await page.locator('[data-test="username"]').fill(process.env.SAUCE_USER!);
+    await page.locator('[data-test="password"]').fill(process.env.SAUCE_PASSWORD!);
     await page.locator('[data-test="login-button"]').click();
 
     // Wait for inventory page to load

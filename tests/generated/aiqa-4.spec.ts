@@ -1,10 +1,10 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 
 test('AIQA-4: Verify products can be sorted by price low to high', async ({ page }) => {
   await test.step('Log in as standard_user', async () => {
     await page.goto('/');
-    await page.locator('input[placeholder="Username"]').fill(process.env.SAUCE_USER || 'standard_user');
-    await page.locator('input[placeholder="Password"]').fill(process.env.SAUCE_PASSWORD || 'secret_sauce');
+    await page.locator('input[placeholder="Username"]').fill(process.env.SAUCE_USER!);
+    await page.locator('input[placeholder="Password"]').fill(process.env.SAUCE_PASSWORD!);
     await page.locator('text=Login').click();
     await page.waitForURL('/inventory.html');
   });
@@ -14,7 +14,7 @@ test('AIQA-4: Verify products can be sorted by price low to high', async ({ page
   });
 
   await test.step('Read product prices and verify they are in non-decreasing order', async () => {
-    const priceElements = await page.locator('.inventory_item_price').all();
+    const priceElements = await page.locator('[data-test="inventory-item-price"]').all();
     const prices: number[] = [];
 
     for (const element of priceElements) {
