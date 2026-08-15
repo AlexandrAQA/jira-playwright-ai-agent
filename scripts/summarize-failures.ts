@@ -15,6 +15,7 @@ import { join } from 'node:path';
 const REPORT = join(__dirname, '..', 'test-results', 'results.json');
 
 /** Error text arrives with terminal colour codes; they are noise for a model. */
+// eslint-disable-next-line no-control-regex -- ANSI escapes are exactly what is stripped here
 const stripAnsi = (s: string) => s.replace(/\[[0-9;]*m/g, '');
 
 /** Playwright puts the locator in the error text; surface it separately when present. */
@@ -34,6 +35,35 @@ const firstLines = (s: string, n = 6) =>
     .filter((l) => l.length > 0)
     .slice(0, n);
 
+// --- The slice of the Playwright JSON report this script actually reads -----
+
+interface JsonResult {
+  status?: string;
+  error?: { message?: string };
+  errors?: Array<{ message?: string }>;
+}
+
+interface JsonTest {
+  projectName?: string;
+  status?: string;
+  results?: JsonResult[];
+}
+
+interface JsonSpec {
+  title: string;
+  tests?: JsonTest[];
+}
+
+interface JsonSuite {
+  file?: string;
+  specs?: JsonSpec[];
+  suites?: JsonSuite[];
+}
+
+interface JsonReport {
+  suites?: JsonSuite[];
+}
+
 type Failure = {
   spec: string;
   title: string;
@@ -50,7 +80,7 @@ let passed = 0;
 let flaky = 0;
 
 /** The JSON report nests suites inside suites; walk the whole tree. */
-function walk(suite: any, file: string) {
+function walk(suite: JsonSuite, file: string) {
   const specFile = suite.file ?? file;
 
   for (const spec of suite.specs ?? []) {
@@ -67,7 +97,9 @@ function walk(suite: any, file: string) {
       if (status === 'skipped') continue;
 
       const raw = stripAnsi(
-        last?.error?.message ?? last?.errors?.map((e: any) => e.message).join('\n') ?? 'no error message in report',
+        last?.error?.message ??
+          last?.errors?.map((e) => e.message ?? '').join('\n') ??
+          'no error message in report',
       );
 
       failures.push({
@@ -89,7 +121,7 @@ if (!existsSync(REPORT)) {
   console.log('No Playwright JSON report found. Run the tests first.');
   process.exitCode = 0;
 } else {
-  const report = JSON.parse(readFileSync(REPORT, 'utf8'));
+  const report = JSON.parse(readFileSync(REPORT, 'utf8')) as JsonReport;
   for (const suite of report.suites ?? []) walk(suite, suite.file ?? '');
 
   if (failures.length === 0) {

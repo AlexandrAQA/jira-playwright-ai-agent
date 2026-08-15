@@ -1,0 +1,9 @@
+node_modules/
+dist/
+playwright-report/
+test-results/
+.playwright-mcp/
+package-lock.json
+*.gif
+*.mp4
+docs_gif_video/

@@ -21,16 +21,40 @@ Target app under test: [SauceDemo](https://www.saucedemo.com).
   asks for confirmation in interactive runs; autonomous runs are opt-in per ticket.
 - **Every generated test lands in CI.** Each push and pull request runs the whole suite on
   GitHub Actions, so a test the agent wrote yesterday keeps being verified today.
+- **A green test still has to earn its place.** A dedicated quality gate rejects specs that
+  pass while proving nothing, and CI runs it before a single browser is installed.
+
+## Quality gates
+
+When the code is written by an agent, refactoring once solves nothing: the next run
+reproduces the old habits. So each standard is enforced in three places at once.
+
+| Where                             | What it does                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------- |
+| `CLAUDE.md`                       | Tells the agent the rules up front: page objects, fixtures, real selectors, no fixed sleeps |
+| `scripts/lint-generated-tests.ts` | Rejects a spec that breaks them, even when the spec is green                                |
+| `.github/workflows/tests.yml`     | Runs the gate, ESLint, Prettier and `tsc` before the tests, so violations fail in seconds   |
+
+The custom gate covers what a general linter cannot express: a spec with no assertion, a
+spec that jumps straight to a URL instead of clicking through the app, a hardcoded
+credential, a brittle CSS or XPath selector, a copy-pasted login, a missing `test.step`.
+
+On its first run it found ten such problems in tests that were already passing.
+
+Alongside it, the usual toolchain: ESLint 9 with `typescript-eslint` type-aware rules
+(a missing `await` on a locator is an error, not a warning), `eslint-plugin-playwright`,
+Prettier, `tsc --noEmit`, `npm audit`, Dependabot, and a husky pre-commit hook so the
+fast checks run before a commit exists.
 
 ## Architecture
 
-| Role | Component | Responsibility |
-|------|-----------|----------------|
-| Brain + loop | Claude Code | Decides, writes test code, runs the workflow |
-| Instructions | `CLAUDE.md` | The playbook: workflow steps and rules |
+| Role         | Component      | Responsibility                                           |
+| ------------ | -------------- | -------------------------------------------------------- |
+| Brain + loop | Claude Code    | Decides, writes test code, runs the workflow             |
+| Instructions | `CLAUDE.md`    | The playbook: workflow steps and rules                   |
 | Hands + eyes | Playwright MCP | Drives a real browser, inspects the DOM, finds selectors |
-| Door to Jira | `src/jira.ts` | Thin REST v3 client: read / move / append |
-| Secrets | `.env` | Jira credentials and SauceDemo test logins |
+| Door to Jira | `src/jira.ts`  | Thin REST v3 client: read / move / append                |
+| Secrets      | `.env`         | Jira credentials and SauceDemo test logins               |
 
 MCP (Model Context Protocol) is an open standard for connecting tools and data to a
 model. Playwright MCP is what makes the agent reliable: instead of guessing selectors
@@ -43,14 +67,18 @@ from the ticket text, it opens the real page and picks real selectors.
 3. Explore SauceDemo via Playwright MCP and find real selectors.
 4. Generate `tests/generated/aiqa-N.spec.ts` (each ticket step is a `test.step`).
 5. Run with Playwright and fix until green.
-6. Append the result to the ticket description.
-7. Move it to **Done**.
+6. Pass the quality gates (custom gate, ESLint, Prettier, types).
+7. Append the result to the ticket description.
+8. Move it to **Done**.
 
 ## Tech stack
 
-- Playwright + TypeScript (Chromium, html + json reporters)
+- Playwright + TypeScript (Chromium, page objects and fixtures, html + json + JUnit reporters,
+  traces, screenshots and video retained on failure)
 - Playwright MCP (browser control)
-- axios + dotenv (Jira REST API v3 client)
+- axios + dotenv (Jira REST API v3 client, typed at the boundary)
+- ESLint 9 flat config + typescript-eslint (type-aware) + eslint-plugin-playwright + Prettier
+- GitHub Actions, husky + lint-staged, Dependabot
 - Claude Code as the agent runtime
 
 ## Setup
@@ -79,6 +107,12 @@ npx tsx src/jira.ts append AIQA-1 "Automated and passing."
 # Run tests
 npm test          # all tests
 npm run report    # open the HTML report
+
+# Quality gates (the same ones CI runs)
+npm run lint:tests    # custom gate for agent-generated specs
+npm run lint          # ESLint, type-aware
+npm run format:check  # Prettier
+npm run typecheck     # tsc --noEmit
 ```
 
 Then, inside Claude Code in this folder, just say `pick up aiqa 1`.
@@ -114,15 +148,22 @@ This is the polling variant of the trigger; a Jira webhook would be the event-dr
 ## Project structure
 
 ```text
-.mcp.json                Playwright MCP server definition
-playwright-mcp.config.json  browser launch flags for the MCP server
-.env / .env.example      secrets (env) and template
-playwright.config.ts     Playwright config (chromium, reporters, baseURL)
-CLAUDE.md                agent playbook (read automatically by Claude Code)
-src/jira.ts              Jira REST v3 helper + CLI
-scripts/seed-tickets.ts  one-off: seed ticket descriptions
-scripts/watch-jira.ts    polling trigger (label-based autonomous runs)
-tests/generated/         generated Playwright specs
+.mcp.json                    Playwright MCP server definition
+playwright-mcp.config.json   browser launch flags for the MCP server
+.env / .env.example          secrets (env) and template
+playwright.config.ts         Playwright config (chromium, reporters, baseURL)
+eslint.config.mjs            ESLint flat config (type-aware + Playwright rules)
+CLAUDE.md                    agent playbook (read automatically by Claude Code)
+src/jira.ts                  Jira REST v3 helper + CLI
+scripts/seed-tickets.ts      one-off: seed ticket descriptions
+scripts/watch-jira.ts        polling trigger (label-based autonomous runs)
+scripts/lint-generated-tests.ts  quality gate for agent-generated specs
+scripts/summarize-failures.ts    turns the JSON report into a short failure digest
+tests/support/pages/         page objects
+tests/support/fixtures.ts    Playwright fixtures (page objects + logged-in state)
+tests/generated/             generated Playwright specs
+.github/workflows/tests.yml  CI: quality job, then the e2e job
+.github/dependabot.yml       weekly dependency updates
 ```
 
 ## Notes

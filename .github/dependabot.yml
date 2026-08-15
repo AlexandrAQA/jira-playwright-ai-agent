@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # npm dependencies. Playwright ships a new minor roughly every month and the
+  # browsers move with it, so staying current is part of keeping the suite honest.
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the whole dev toolchain instead of five separate ones.
+      dev-tooling:
+        patterns:
+          - '@playwright/*'
+          - 'playwright*'
+          - 'eslint*'
+          - '@eslint/*'
+          - 'typescript*'
+          - 'prettier'
+          - 'tsx'
+          - '@types/*'
+    commit-message:
+      prefix: 'deps'
+
+  # The pinned action versions in .github/workflows.
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'ci'

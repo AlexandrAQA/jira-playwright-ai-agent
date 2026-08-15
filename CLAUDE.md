@@ -22,9 +22,12 @@ for the Jira ticket `AIQA-N`.
    step in `test.step('...', async () => { ... })`.
 5. **Run and make it green:** `npx playwright test tests/generated/aiqa-N.spec.ts`.
    On failure, read the error, fix the selector/assertion, rerun until it passes.
-6. **Append the result to Jira:** `npx tsx src/jira.ts append AIQA-N "Automated test:
-   <what was automated>. File: tests/generated/aiqa-N.spec.ts. Run: PASSED."`.
-7. **Close it:** `npx tsx src/jira.ts move AIQA-N "Done"`.
+6. **Pass the quality gates:** `npm run lint:tests && npm run lint && npm run format:check`.
+   Green is not enough: a test that skips these would be rejected by CI anyway.
+   Use `npm run lint:fix` and `npm run format` to fix what is auto-fixable.
+7. **Append the result to Jira:** `npx tsx src/jira.ts append AIQA-N "Automated test:
+<what was automated>. File: tests/generated/aiqa-N.spec.ts. Run: PASSED."`.
+8. **Close it:** `npx tsx src/jira.ts move AIQA-N "Done"`.
 
 ## Test authoring rules
 

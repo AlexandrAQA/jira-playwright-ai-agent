@@ -76,12 +76,16 @@ function api(): AxiosInstance {
       console.error(`[JIRA] <- ${res.status} ${res.config.url}`);
       return res;
     },
-    (err) => {
-      const status = err.response?.status ?? 'ERR';
-      const url = err.config?.url ?? '';
-      const body = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-      console.error(`[JIRA] !! ${status} ${url} ${body}`);
-      return Promise.reject(err);
+    (err: unknown) => {
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status ?? 'ERR';
+        const url = err.config?.url ?? '';
+        const body = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+        console.error(`[JIRA] !! ${status} ${url} ${body}`);
+      } else {
+        console.error(`[JIRA] !! ${String(err)}`);
+      }
+      return Promise.reject(err instanceof Error ? err : new Error(String(err)));
     },
   );
 
@@ -92,25 +96,57 @@ function api(): AxiosInstance {
 // --- ADF (Atlassian Document Format) <-> text -------------------------------
 // In API v3 the description is not a string but an ADF tree, so we read and write it separately.
 
+/** One node of an Atlassian Document Format tree. */
+export interface AdfNode {
+  type?: string;
+  text?: string;
+  version?: number;
+  content?: AdfNode[];
+}
+
 /** Recursively extract plain text from an ADF tree. */
-function adfToText(node: any): string {
+function adfToText(node: AdfNode | null | undefined): string {
   if (!node) return '';
   if (node.type === 'text') return node.text ?? '';
   if (node.type === 'hardBreak') return '\n';
-  const children = Array.isArray(node.content) ? node.content.map(adfToText).join('') : '';
+  const children = node.content ? node.content.map(adfToText).join('') : '';
   // add a newline after block nodes so the text stays readable
-  if (['paragraph', 'heading', 'blockquote', 'listItem'].includes(node.type)) {
+  if (node.type && ['paragraph', 'heading', 'blockquote', 'listItem'].includes(node.type)) {
     return children + '\n';
   }
   return children;
 }
 
 /** Turn a multi-line string into an array of ADF paragraphs. */
-function textToParagraphs(text: string): any[] {
+function textToParagraphs(text: string): AdfNode[] {
   return text.split('\n').map((line) => ({
     type: 'paragraph',
     content: line.length ? [{ type: 'text', text: line }] : [],
   }));
+}
+
+// --- Shapes of the Jira REST v3 responses we actually read ------------------
+// Only the fields this project uses. Typing the boundary here is what keeps
+// `any` from leaking into every caller.
+
+interface IssueFields {
+  summary?: string;
+  status?: { name?: string };
+  labels?: string[];
+  description?: AdfNode | null;
+}
+
+interface IssueResponse {
+  key: string;
+  fields: IssueFields;
+}
+
+interface TransitionsResponse {
+  transitions: Array<{ id: string; name?: string; to?: { name?: string } }>;
+}
+
+interface SearchResponse {
+  issues?: Array<{ key: string; fields: IssueFields }>;
 }
 
 // --- Public functions -------------------------------------------------------
@@ -121,12 +157,12 @@ export interface JiraIssue {
   status: string;
   labels: string[];
   descriptionText: string;
-  descriptionAdf: any;
+  descriptionAdf: AdfNode | null;
 }
 
 /** Read the whole ticket (the fields we need). */
 export async function getIssue(key: string): Promise<JiraIssue> {
-  const { data } = await api().get(`/issue/${key}`, {
+  const { data } = await api().get<IssueResponse>(`/issue/${key}`, {
     params: { fields: 'summary,description,status,labels' },
   });
   return {
@@ -145,20 +181,26 @@ export async function getDescriptionText(key: string): Promise<string> {
 }
 
 /** Status transitions available right now. */
-export async function getTransitions(key: string): Promise<Array<{ id: string; name: string; to: string }>> {
-  const { data } = await api().get(`/issue/${key}/transitions`);
-  return data.transitions.map((t: any) => ({ id: t.id, name: t.name, to: t.to?.name }));
+export async function getTransitions(
+  key: string,
+): Promise<Array<{ id: string; name: string; to: string }>> {
+  const { data } = await api().get<TransitionsResponse>(`/issue/${key}/transitions`);
+  return data.transitions.map((t) => ({
+    id: t.id,
+    name: t.name ?? '',
+    to: t.to?.name ?? '',
+  }));
 }
 
 /** Move a ticket to a status by name ("In Progress", "Done", etc.). */
 export async function moveIssue(key: string, statusName: string): Promise<void> {
-  const { data } = await api().get(`/issue/${key}/transitions`);
+  const { data } = await api().get<TransitionsResponse>(`/issue/${key}/transitions`);
   const target = statusName.trim().toLowerCase();
   const t = data.transitions.find(
-    (tr: any) => tr.name?.toLowerCase() === target || tr.to?.name?.toLowerCase() === target,
+    (tr) => tr.name?.toLowerCase() === target || tr.to?.name?.toLowerCase() === target,
   );
   if (!t) {
-    const available = data.transitions.map((tr: any) => `${tr.name} -> ${tr.to?.name}`).join(', ');
+    const available = data.transitions.map((tr) => `${tr.name} -> ${tr.to?.name}`).join(', ');
     throw new Error(`Transition to "${statusName}" not found. Available: ${available || '(none)'}`);
   }
   await api().post(`/issue/${key}/transitions`, { transition: { id: t.id } });
@@ -171,7 +213,7 @@ export async function appendToDescription(key: string, text: string): Promise<vo
   const newParagraphs = textToParagraphs(text);
   const existing = issue.descriptionAdf;
 
-  const doc =
+  const doc: AdfNode =
     existing && existing.type === 'doc'
       ? { ...existing, content: [...(existing.content ?? []), ...newParagraphs] }
       : { type: 'doc', version: 1, content: newParagraphs };
@@ -207,14 +249,16 @@ export async function removeLabel(key: string, label: string): Promise<void> {
  * Uses the new enhanced search endpoint /rest/api/3/search/jql
  * (the old /rest/api/3/search was removed by Atlassian and returns 410).
  */
-export async function search(jql: string): Promise<Array<{ key: string; summary: string; status: string }>> {
-  const { data } = await api().get('/search/jql', {
+export async function search(
+  jql: string,
+): Promise<Array<{ key: string; summary: string; status: string }>> {
+  const { data } = await api().get<SearchResponse>('/search/jql', {
     params: { jql, fields: 'summary,status', maxResults: 50 },
   });
-  return (data.issues ?? []).map((i: any) => ({
+  return (data.issues ?? []).map((i) => ({
     key: i.key,
-    summary: i.fields.summary,
-    status: i.fields.status?.name,
+    summary: i.fields.summary ?? '',
+    status: i.fields.status?.name ?? '',
   }));
 }
 
@@ -284,14 +328,14 @@ async function main(): Promise<void> {
           ].join('\n'),
         );
     }
-  } catch (err: any) {
+  } catch (err) {
     // Do not crash with a stack trace: print a clear error and exit with code 1.
-    console.error(`\n[JIRA] ERROR: ${err.message}`);
+    console.error(`\n[JIRA] ERROR: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
 }
 
 // Run main() only when the file is invoked directly as a CLI (not imported).
 if (require.main === module) {
-  main();
+  void main();
 }

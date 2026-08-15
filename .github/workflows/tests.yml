@@ -6,8 +6,49 @@ on:
   pull_request:
     branches: [main]
 
+# A new push to the same branch makes the previous run pointless: cancel it
+# instead of paying for two runs of the same code.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Everything that needs no browser. It finishes in well under a minute, so a
+  # badly formatted or badly typed change never reaches the expensive job.
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Types
+        run: npm run typecheck
+
+      # Quality gate specific to agent-generated tests: rejects a spec that is
+      # green but worthless (no assertion, URL jumping, brittle selector, inline login).
+      - name: Generated-test quality gate
+        run: npm run lint:tests
+
+      # Known vulnerabilities. Dependabot opens the fix PRs; this step is what
+      # stops an advisory from sitting unnoticed between those PRs.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
   e2e:
+    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -19,12 +60,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      - run: npm run typecheck
-
-      # Quality gate for agent-generated tests. Runs before the browsers are
-      # installed, so a worthless-but-green test fails the build in seconds.
-      - run: npm run lint:tests
 
       - run: npx playwright install --with-deps chromium
 

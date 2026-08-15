@@ -54,7 +54,9 @@ function runAgent(key: string): Promise<void> {
     ];
 
     if (DRY_RUN) {
-      log(`DRY_RUN: would run -> claude ${args.map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' ')}`);
+      log(
+        `DRY_RUN: would run -> claude ${args.map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' ')}`,
+      );
       resolve();
       return;
     }
@@ -74,8 +76,8 @@ async function tick(): Promise<void> {
   let issues: Array<{ key: string; summary: string; status: string }>;
   try {
     issues = await search(jql);
-  } catch (e: any) {
-    log(`Jira search failed: ${e.message}`);
+  } catch (e) {
+    log(`Jira search failed: ${e instanceof Error ? e.message : String(e)}`);
     return;
   }
 
@@ -97,12 +99,13 @@ async function start(): Promise<void> {
     log('one-shot done');
     return;
   }
-  // schedule the next cycle only after the current one finished (no overlap)
+  // schedule the next cycle only after the current one finished (no overlap).
+  // setTimeout expects a void callback, so the promise is discarded explicitly.
   const repeat = async (): Promise<void> => {
     await tick();
-    setTimeout(repeat, INTERVAL);
+    setTimeout(() => void repeat(), INTERVAL);
   };
-  setTimeout(repeat, INTERVAL);
+  setTimeout(() => void repeat(), INTERVAL);
 }
 
-start();
+void start();

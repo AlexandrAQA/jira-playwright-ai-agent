@@ -1,0 +1,3 @@
+# Fast checks on staged files only. The full suite stays in CI; this hook exists
+# so an obvious formatting or lint failure never becomes a commit at all.
+npx lint-staged
