@@ -17,7 +17,7 @@
  * ---------------------------------------------------------------------------
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import 'dotenv/config';
 
@@ -115,6 +115,10 @@ function run(options: Options): void {
     `${options.ticket.toLowerCase()}.spec.ts`,
   );
 
+  // "The file exists" is not evidence: it may be last week's spec that the run
+  // never touched. What counts is that this run wrote it.
+  const specStampBefore = existsSync(specPath) ? statSync(specPath).mtimeMs : null;
+
   const startedAt = Date.now();
   // stdin is closed rather than left as an open pipe: the CLI otherwise waits
   // for input it will never get and reports "no stdin data received in 3s".
@@ -139,8 +143,9 @@ function run(options: Options): void {
 
     // A zero exit code proves the process ended, not that the work happened.
     // The workflow's actual product is the spec file, so that is what decides.
-    const producedSpec = existsSync(specPath);
-    const succeeded = code === 0 && !parsed.isError && producedSpec;
+    const wroteSpec =
+      existsSync(specPath) && statSync(specPath).mtimeMs !== (specStampBefore ?? -1);
+    const succeeded = code === 0 && !parsed.isError && wroteSpec;
 
     const record: RunRecord = {
       ticket: options.ticket,
