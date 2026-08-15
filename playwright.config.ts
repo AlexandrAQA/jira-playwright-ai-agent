@@ -17,11 +17,15 @@ export default defineConfig({
   reporter: [
     ['html', { open: 'never' }],
     ['json', { outputFile: 'test-results/results.json' }],
+    // JUnit XML is the de facto format every CI and test dashboard understands.
+    ['junit', { outputFile: 'test-results/junit.xml' }],
   ],
   use: {
     baseURL: 'https://www.saucedemo.com',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Video is kept only for failures: enough to see what happened, no disk cost on green runs.
+    video: 'retain-on-failure',
     // Suppress Chrome password-manager popups during headed/demo runs, e.g. the
     // "Change your password / found in a data breach" bubble that Chrome shows for
     // the public secret_sauce password. Unknown feature names are ignored by Chromium.

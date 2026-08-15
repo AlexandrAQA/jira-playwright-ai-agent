@@ -31,9 +31,24 @@ jobs:
           SAUCE_USER: ${{ secrets.SAUCE_USER }}
           SAUCE_PASSWORD: ${{ secrets.SAUCE_PASSWORD }}
 
+      # Short failure digest straight on the run page, so nothing has to be
+      # downloaded to see what broke.
+      - name: Failure summary
+        if: failure()
+        run: npx tsx scripts/summarize-failures.ts >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 7
+
+      # Raw traces, videos and the JUnit XML. Traces open in the Playwright
+      # trace viewer, JUnit is what test dashboards consume.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-artifacts
+          path: test-results/
           retention-days: 7
