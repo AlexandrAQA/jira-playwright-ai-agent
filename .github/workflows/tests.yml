@@ -74,7 +74,7 @@ jobs:
         if: failure()
         run: npx tsx scripts/summarize-failures.ts >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report
@@ -83,7 +83,7 @@ jobs:
 
       # Raw traces, videos and the JUnit XML. Traces open in the Playwright
       # trace viewer, JUnit is what test dashboards consume.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-artifacts
