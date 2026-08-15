@@ -1,6 +1,7 @@
 # AI QA Agent: Jira -> Playwright -> Jira
 
 [![tests](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml)
+[![report](https://img.shields.io/badge/latest%20report-open-blue)](https://alexandraqa.github.io/jira-playwright-ai-agent/)
 
 **A Jira ticket goes in. A passing Playwright test comes out, and the ticket closes itself.**
 
@@ -27,6 +28,26 @@ Target app under test: [SauceDemo](https://www.saucedemo.com).
   browser out of the fix loop cut a ticket by **57% in tokens and half in wall clock**,
   measured by running the same tickets through both pipelines. See
   [what a run costs](#what-a-run-costs).
+
+## Governance: the agent proposes, a human merges
+
+The agent has no write access to `main`. What it produces is a branch and a pull request:
+
+```bash
+npm run pr -- AIQA-7
+```
+
+The branch is `agent/aiqa-7`, and only the files that ticket may legitimately have
+touched are staged, so unrelated work in the tree cannot ride along. The pull request
+body lists what the automation already verified and, separately, the three things a
+reviewer has to judge because no linter can: whether the test covers what the ticket
+asked for, whether it would actually fail if the feature broke, and whether any new
+knowledge-base entry is true rather than a guess that happened to work. Those boxes ship
+unchecked, and the playbook forbids the agent from ticking them.
+
+So "how do you stop the agent breaking your repository" has a mechanical answer. Three
+things sit between a generated test and `main`: the quality gate rejects it locally, CI
+runs it again on the pull request, and a person clicks merge.
 
 ## Quality gates
 
@@ -127,6 +148,39 @@ app is known. It is not what the very first ticket against an unfamiliar app cos
 the gap there is smaller, because that run has to do the recon either way.
 
 ## Architecture
+
+```mermaid
+flowchart TD
+    JIRA[("Jira<br/>AIQA board")]
+    AGENT["Claude Code<br/>the loop, follows CLAUDE.md"]
+    KB[("knowledge/<br/>BM25 retrieval")]
+    MCP["Playwright MCP<br/>real browser"]
+    CLI["Playwright CLI<br/>run and fix"]
+    SPEC["tests/generated/<br/>aiqa-N.spec.ts"]
+    GATE{"Quality gate<br/>lint, types, format"}
+    PR["Branch + pull request"]
+    HUMAN(["Human approves"])
+    CI["CI: quality then e2e"]
+
+    JIRA -->|"1. read the ticket"| AGENT
+    AGENT -->|"2. look it up first"| KB
+    KB -.->|"answers"| AGENT
+    AGENT -->|"3. phase A, only the gaps"| MCP
+    MCP -.->|"real selectors"| KB
+    AGENT -->|"4. phase B, write"| SPEC
+    SPEC --> CLI
+    CLI -.->|"failure text, no snapshot"| AGENT
+    SPEC --> GATE
+    GATE -->|"rejected"| AGENT
+    GATE -->|"accepted"| PR
+    PR --> HUMAN
+    HUMAN -->|"merge"| CI
+    AGENT -->|"5. append result, move to Done"| JIRA
+```
+
+The dashed arrows are the cheap paths. The solid one into Playwright MCP is the expensive
+one, which is why it is entered only for what the knowledge base could not answer, and why
+what MCP learns goes back into the knowledge base instead of being discovered again.
 
 | Role         | Component      | Responsibility                                           |
 | ------------ | -------------- | -------------------------------------------------------- |
@@ -246,7 +300,14 @@ CLAUDE.md                    agent playbook (read automatically by Claude Code)
 knowledge/                   the knowledge base: Markdown, one section per question
 src/jira.ts                  Jira REST v3 helper + CLI
 src/knowledge.ts             BM25 retrieval over knowledge/
+src/metrics.ts               per-run cost bookkeeping (JSONL + aggregation)
+src/github.ts                remote parsing and pull-request body
+src/claude-cli.ts            locates the Claude Code executable to spawn
 scripts/kb.ts                CLI for the knowledge base (search, list)
+scripts/run-agent.ts         measured agent run, appends to metrics/runs.jsonl
+scripts/open-pr.ts           branch + pull request for one ticket
+scripts/reset-ticket.ts      put a ticket back to To Do so a run can be repeated
+scripts/metrics-report.ts    regenerates the cost table in this README
 scripts/seed-tickets.ts      one-off: seed ticket descriptions
 scripts/watch-jira.ts        polling trigger (label-based autonomous runs)
 scripts/lint-generated-tests.ts  quality gate for agent-generated specs

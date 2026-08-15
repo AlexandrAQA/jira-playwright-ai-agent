@@ -104,8 +104,14 @@ export interface AdfNode {
   content?: AdfNode[];
 }
 
-/** Recursively extract plain text from an ADF tree. */
-function adfToText(node: AdfNode | null | undefined): string {
+/**
+ * Recursively extract plain text from an ADF tree.
+ *
+ * Exported for the unit tests. Everything in this file that can be decided
+ * without the network is a plain function, so it can be tested for real instead
+ * of through a mock that only proves axios was called.
+ */
+export function adfToText(node: AdfNode | null | undefined): string {
   if (!node) return '';
   if (node.type === 'text') return node.text ?? '';
   if (node.type === 'hardBreak') return '\n';
@@ -118,7 +124,7 @@ function adfToText(node: AdfNode | null | undefined): string {
 }
 
 /** Turn a multi-line string into an array of ADF paragraphs. */
-function textToParagraphs(text: string): AdfNode[] {
+export function textToParagraphs(text: string): AdfNode[] {
   return text.split('\n').map((line) => ({
     type: 'paragraph',
     content: line.length ? [{ type: 'text', text: line }] : [],
@@ -149,6 +155,54 @@ interface SearchResponse {
   issues?: Array<{ key: string; fields: IssueFields }>;
 }
 
+export type Transition = { id: string; name?: string; to?: { name?: string } };
+
+// --- Pure mapping, everything that needs no network ------------------------
+
+/** Shape one REST issue payload into the domain object the agent works with. */
+export function toJiraIssue(data: IssueResponse): JiraIssue {
+  return {
+    key: data.key,
+    summary: data.fields.summary ?? '',
+    status: data.fields.status?.name ?? '',
+    labels: data.fields.labels ?? [],
+    descriptionText: adfToText(data.fields.description).trim(),
+    descriptionAdf: data.fields.description ?? null,
+  };
+}
+
+/**
+ * Find the transition that leads to a status.
+ *
+ * Jira names the transition and the destination status separately, and boards
+ * disagree about which one a human means. Matching either is what makes
+ * `move AIQA-1 "Done"` work across differently configured boards.
+ */
+export function pickTransition(
+  transitions: Transition[],
+  statusName: string,
+): Transition | undefined {
+  const target = statusName.trim().toLowerCase();
+  return transitions.find(
+    (t) => t.name?.toLowerCase() === target || t.to?.name?.toLowerCase() === target,
+  );
+}
+
+/**
+ * Build the description that results from appending text to an existing one.
+ *
+ * The project's hardest rule lives here: a ticket description is only ever
+ * appended to. Overwriting one would destroy a human's acceptance criteria, and
+ * the agent runs unattended, so the rule has to hold in code and not only in
+ * the playbook.
+ */
+export function appendedDescription(existing: AdfNode | null | undefined, text: string): AdfNode {
+  const paragraphs = textToParagraphs(text);
+  return existing && existing.type === 'doc'
+    ? { ...existing, content: [...(existing.content ?? []), ...paragraphs] }
+    : { type: 'doc', version: 1, content: paragraphs };
+}
+
 // --- Public functions -------------------------------------------------------
 
 export interface JiraIssue {
@@ -165,14 +219,7 @@ export async function getIssue(key: string): Promise<JiraIssue> {
   const { data } = await api().get<IssueResponse>(`/issue/${key}`, {
     params: { fields: 'summary,description,status,labels' },
   });
-  return {
-    key: data.key,
-    summary: data.fields.summary ?? '',
-    status: data.fields.status?.name ?? '',
-    labels: data.fields.labels ?? [],
-    descriptionText: adfToText(data.fields.description).trim(),
-    descriptionAdf: data.fields.description ?? null,
-  };
+  return toJiraIssue(data);
 }
 
 /** Description text only. */
@@ -195,10 +242,7 @@ export async function getTransitions(
 /** Move a ticket to a status by name ("In Progress", "Done", etc.). */
 export async function moveIssue(key: string, statusName: string): Promise<void> {
   const { data } = await api().get<TransitionsResponse>(`/issue/${key}/transitions`);
-  const target = statusName.trim().toLowerCase();
-  const t = data.transitions.find(
-    (tr) => tr.name?.toLowerCase() === target || tr.to?.name?.toLowerCase() === target,
-  );
+  const t = pickTransition(data.transitions, statusName);
   if (!t) {
     const available = data.transitions.map((tr) => `${tr.name} -> ${tr.to?.name}`).join(', ');
     throw new Error(`Transition to "${statusName}" not found. Available: ${available || '(none)'}`);
@@ -210,13 +254,7 @@ export async function moveIssue(key: string, statusName: string): Promise<void> 
 /** APPEND text to the end of the description without overwriting what is there. */
 export async function appendToDescription(key: string, text: string): Promise<void> {
   const issue = await getIssue(key);
-  const newParagraphs = textToParagraphs(text);
-  const existing = issue.descriptionAdf;
-
-  const doc: AdfNode =
-    existing && existing.type === 'doc'
-      ? { ...existing, content: [...(existing.content ?? []), ...newParagraphs] }
-      : { type: 'doc', version: 1, content: newParagraphs };
+  const doc = appendedDescription(issue.descriptionAdf, text);
 
   await api().put(`/issue/${key}`, { fields: { description: doc } });
   console.error(`[JIRA] appended to description of ${key} (${text.length} chars)`);

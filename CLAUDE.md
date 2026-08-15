@@ -63,9 +63,12 @@ element, and record what you find in the knowledge base afterwards.
    page that behaves unexpectedly), append it to the right file in `knowledge/` under a
    `##` heading that names the question it answers. Then `npx playwright test --project=unit`
    to confirm retrieval still works. This is what makes the next ticket cheaper than this one.
-9. **Append the result to Jira:** `npx tsx src/jira.ts append AIQA-N "Automated test:
+9. **Propose the work, do not merge it:** `npm run pr -- AIQA-N`. This puts the spec and any
+   knowledge-base change on the branch `agent/aiqa-N` and raises a pull request.
+   **Never commit to `main` and never merge your own pull request.** A human reviews it.
+10. **Append the result to Jira:** `npx tsx src/jira.ts append AIQA-N "Automated test:
 <what was automated>. File: tests/generated/aiqa-N.spec.ts. Run: PASSED."`.
-10. **Close it:** `npx tsx src/jira.ts move AIQA-N "Done"`.
+11. **Close it:** `npx tsx src/jira.ts move AIQA-N "Done"`.
 
 ## Test authoring rules
 
@@ -102,3 +105,5 @@ element, and record what you find in the knowledge base afterwards.
 - EXCEPTION, autonomous mode: if the task explicitly says to run autonomously (a
   label-triggered / headless run), do NOT ask. Proceed through the full workflow on your own.
 - Never commit `.env` and never print the Jira token to logs/responses.
+- Never push to `main`, never merge a pull request, and never approve your own. The branch
+  and the pull request are the whole of your write access to the repository.
