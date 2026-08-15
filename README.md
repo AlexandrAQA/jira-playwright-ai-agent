@@ -107,12 +107,15 @@ from the ticket text, it opens the real page and picks real selectors.
 
 1. Read the ticket from Jira (`src/jira.ts get`).
 2. Move it to **In Progress**.
-3. Explore SauceDemo via Playwright MCP and find real selectors.
-4. Generate `tests/generated/aiqa-N.spec.ts` (each ticket step is a `test.step`).
-5. Run with Playwright and fix until green.
-6. Pass the quality gates (custom gate, ESLint, Prettier, types).
-7. Append the result to the ticket description.
-8. Move it to **Done**.
+3. Query the knowledge base for what the ticket needs (`scripts/kb.ts search`).
+4. **Phase A:** explore SauceDemo via Playwright MCP, but only for the gaps the knowledge
+   base did not fill. Skipped entirely when there were none.
+5. **Phase B:** generate `tests/generated/aiqa-N.spec.ts` (each ticket step is a `test.step`).
+6. Run with the Playwright CLI and fix until green, without reopening the browser.
+7. Pass the quality gates (custom gate, ESLint, Prettier, types).
+8. Append anything newly discovered to `knowledge/`, so the next ticket is cheaper.
+9. Append the result to the ticket description.
+10. Move it to **Done**.
 
 ## Tech stack
 
