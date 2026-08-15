@@ -46,6 +46,49 @@ Alongside it, the usual toolchain: ESLint 9 with `typescript-eslint` type-aware 
 Prettier, `tsc --noEmit`, `npm audit`, Dependabot, and a husky pre-commit hook so the
 fast checks run before a commit exists.
 
+## Retrieval: the agent looks it up before it opens a browser
+
+Opening the app through Playwright MCP is the expensive part of a run. Every call adds an
+accessibility snapshot to the context and that snapshot stays there, so ten calls cost ten
+snapshots. Rediscovering the same selectors on every ticket is the single largest waste in
+a naive agent loop.
+
+So the project keeps a knowledge base in `knowledge/`: plain Markdown, one `##` section
+per question, holding the selectors and page behaviour that earlier tickets established.
+The agent queries it first and only explores the gaps.
+
+```bash
+npm run kb search "how do I assert the cart is empty"
+```
+
+Ranking is BM25 over heading-sized chunks, implemented in `src/knowledge.ts` with no
+dependencies. Term frequency saturates, rare terms outweigh common ones, long sections do
+not win by being long. Headings are weighted above body text and every chunk inherits its
+document title, so a query naming a page reaches that page's sections.
+
+Markdown rather than a vector store is a deliberate choice at this size: it diffs in a
+pull request, a human can fix a wrong selector by editing one line, and the agent appends
+to it with the tools it already has. Embeddings are the next step, not a prerequisite.
+
+`tests/unit/knowledge.spec.ts` pins the ranking against a synthetic corpus and asserts
+that the real knowledge base still answers the questions the agent asks. A section renamed
+out from under the agent fails the build instead of quietly degrading its output.
+
+## Cost discipline: three sources, in order
+
+`CLAUDE.md` makes the agent reach for the cheapest source that can answer a question.
+
+| Source                             | Cost                               | Used for                 |
+| ---------------------------------- | ---------------------------------- | ------------------------ |
+| Knowledge base (`scripts/kb.ts`)   | a few hundred tokens               | anything already learned |
+| Playwright CLI (`playwright test`) | one error message                  | the write, run, fix loop |
+| Playwright MCP (`browser_*`)       | an accessibility snapshot per call | first-time recon only    |
+
+The run is split into two phases with a hard boundary. **Phase A** is recon through MCP,
+entered only for what the knowledge base did not answer, and left as soon as the selectors
+are in hand. **Phase B** is writing and fixing through the CLI, and it never reopens the
+browser: a failing assertion is diagnosed from the error text, not from another snapshot.
+
 ## Architecture
 
 | Role         | Component      | Responsibility                                           |
@@ -104,8 +147,14 @@ npx tsx src/jira.ts get AIQA-1
 npx tsx src/jira.ts move AIQA-1 "In Progress"
 npx tsx src/jira.ts append AIQA-1 "Automated and passing."
 
+# Knowledge base
+npm run kb search "which selector is the login button"
+npm run kb list
+
 # Run tests
-npm test          # all tests
+npm test          # everything
+npm run test:unit # retrieval unit tests, no browser
+npm run test:e2e  # the browser suite
 npm run report    # open the HTML report
 
 # Quality gates (the same ones CI runs)
@@ -154,7 +203,10 @@ playwright-mcp.config.json   browser launch flags for the MCP server
 playwright.config.ts         Playwright config (chromium, reporters, baseURL)
 eslint.config.mjs            ESLint flat config (type-aware + Playwright rules)
 CLAUDE.md                    agent playbook (read automatically by Claude Code)
+knowledge/                   the knowledge base: Markdown, one section per question
 src/jira.ts                  Jira REST v3 helper + CLI
+src/knowledge.ts             BM25 retrieval over knowledge/
+scripts/kb.ts                CLI for the knowledge base (search, list)
 scripts/seed-tickets.ts      one-off: seed ticket descriptions
 scripts/watch-jira.ts        polling trigger (label-based autonomous runs)
 scripts/lint-generated-tests.ts  quality gate for agent-generated specs
@@ -162,6 +214,7 @@ scripts/summarize-failures.ts    turns the JSON report into a short failure dige
 tests/support/pages/         page objects
 tests/support/fixtures.ts    Playwright fixtures (page objects + logged-in state)
 tests/generated/             generated Playwright specs
+tests/unit/                  unit tests for the retriever (no browser)
 .github/workflows/tests.yml  CI: quality job, then the e2e job
 .github/dependabot.yml       weekly dependency updates
 ```

@@ -42,6 +42,11 @@ jobs:
       - name: Generated-test quality gate
         run: npm run lint:tests
 
+      # Retrieval unit tests. No browser, so they belong in this job: a knowledge
+      # base that stopped answering a question fails here in a second.
+      - name: Unit tests
+        run: npm run test:unit
+
       # Known vulnerabilities. Dependabot opens the fix PRs; this step is what
       # stops an advisory from sitting unnoticed between those PRs.
       - name: Audit dependencies
@@ -80,7 +85,8 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - run: npx playwright test
+      # Only the browser project: the unit project already ran in `quality`.
+      - run: npm run test:e2e
         env:
           SAUCE_USER: ${{ secrets.SAUCE_USER }}
           SAUCE_PASSWORD: ${{ secrets.SAUCE_PASSWORD }}

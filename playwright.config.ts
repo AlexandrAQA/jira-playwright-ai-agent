@@ -3,17 +3,22 @@ import 'dotenv/config';
 
 /**
  * Playwright configuration.
- * - tests live in tests/generated (the agent drops generated .spec.ts files here)
+ * - two projects: `unit` (no browser, tests/unit) and `chromium` (tests/generated)
+ * - the agent drops generated .spec.ts files into tests/generated
  * - chromium only (other browsers are not needed for this demo)
  * - two reporters: html (human-friendly report) and json (machine-readable, used by the agent)
  * - baseURL = SauceDemo, so tests can use page.goto('/') instead of the full URL
  */
 export default defineConfig({
-  testDir: './tests/generated',
+  testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
+  // One broken precondition (an expired credential, the app down) otherwise
+  // fails every spec three times over and buries the cause in a ten-minute run.
+  // Stop early: three failures are already enough to know the run is red.
+  maxFailures: process.env.CI ? 3 : 0,
   reporter: [
     ['html', { open: 'never' }],
     ['json', { outputFile: 'test-results/results.json' }],
@@ -50,8 +55,15 @@ export default defineConfig({
     },
   },
   projects: [
+    // Pure logic, no browser. Kept as a Playwright project so there is one test
+    // runner in the repo instead of two, and so these run in the fast CI job.
+    {
+      name: 'unit',
+      testDir: './tests/unit',
+    },
     {
       name: 'chromium',
+      testDir: './tests/generated',
       use: { ...devices['Desktop Chrome'] },
     },
   ],
