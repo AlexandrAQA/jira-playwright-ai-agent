@@ -48,6 +48,16 @@ const fileRules = [
     why: 'each ticket step should be a test.step so the report maps back to the ticket',
     test: (src: string) => !/test\.step\s*\(/.test(src),
   },
+  {
+    name: 'must-use-fixtures',
+    why: 'import test and expect from ../support/fixtures, not from @playwright/test, so page objects and the login fixture are used',
+    test: (src: string) => /from\s+['"]@playwright\/test['"]/.test(src),
+  },
+  {
+    name: 'no-inline-login',
+    why: 'the login flow belongs in the loggedIn fixture, not copied into a spec',
+    test: (src: string) => /\[data-test="(username|password|login-button)"\]/.test(src),
+  },
 ];
 
 if (!existsSync(DIR)) {

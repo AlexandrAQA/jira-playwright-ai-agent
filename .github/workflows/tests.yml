@@ -20,6 +20,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run typecheck
+
       # Quality gate for agent-generated tests. Runs before the browsers are
       # installed, so a worthless-but-green test fails the build in seconds.
       - run: npm run lint:tests

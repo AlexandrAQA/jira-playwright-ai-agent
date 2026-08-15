@@ -28,6 +28,17 @@ for the Jira ticket `AIQA-N`.
 
 ## Test authoring rules
 
+**Page objects and fixtures are mandatory. A spec never talks to raw selectors.**
+
+- Import `test` and `expect` from `../support/fixtures`, never from `@playwright/test`.
+- Available fixtures: `loginPage`, `inventoryPage`, `cartPage`, `checkoutPage`, and
+  `loggedIn` (already signed in as the standard user, sitting on the inventory page).
+- Depend on `loggedIn` whenever the login itself is not what the ticket tests. Never
+  copy the login steps into a spec.
+- Page objects live in `tests/support/pages/`. If a ticket needs an element that no page
+  object exposes yet, **add it to the page object first**, then use it from the spec.
+- Everything above is enforced by `npm run lint:tests`, which runs in CI before the tests.
+
 - Role-based selectors: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`.
   SauceDemo exposes stable `data-test` attributes, so `getByTestId(...)` is also fine.
   Avoid brittle CSS/XPath tied to markup.

@@ -1,23 +1,21 @@
-﻿import { test, expect } from '@playwright/test';
+import { expect, test } from '../support/fixtures';
 
-// Credentials come from .env (loaded via dotenv in playwright.config.ts). Never hardcode.
-const USER = process.env.SAUCE_USER!;
-const PASS = process.env.SAUCE_PASSWORD!;
-
-test('AIQA-1: login with standard_user lands on the inventory page', async ({ page }) => {
+test('AIQA-1: login with standard_user lands on the inventory page', async ({
+  page,
+  loginPage,
+  inventoryPage,
+}) => {
   await test.step('Open the SauceDemo login page', async () => {
-    await page.goto('/');
-    await expect(page.locator('[data-test="username"]')).toBeVisible();
+    await loginPage.open();
+    await expect(loginPage.username).toBeVisible();
   });
 
-  await test.step('Log in as standard_user', async () => {
-    await page.locator('[data-test="username"]').fill(USER);
-    await page.locator('[data-test="password"]').fill(PASS);
-    await page.locator('[data-test="login-button"]').click();
+  await test.step('Log in as the standard user', async () => {
+    await loginPage.login(process.env.SAUCE_USER!, process.env.SAUCE_PASSWORD!);
   });
 
   await test.step('Verify redirect to the inventory page', async () => {
     await expect(page).toHaveURL(/inventory\.html/);
-    await expect(page.locator('[data-test="inventory-list"]')).toBeVisible();
+    await expect(inventoryPage.itemNames.first()).toBeVisible();
   });
 });

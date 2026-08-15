@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "lint:tests": "tsx scripts/lint-generated-tests.ts",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
