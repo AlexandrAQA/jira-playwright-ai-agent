@@ -15,6 +15,7 @@
     "test:e2e": "playwright test --project=chromium",
     "kb": "tsx scripts/kb.ts",
     "agent": "tsx scripts/run-agent.ts",
+    "reset": "tsx scripts/reset-ticket.ts",
     "metrics": "tsx scripts/metrics-report.ts",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report",
