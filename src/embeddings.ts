@@ -135,7 +135,13 @@ export async function loadExtractor(): Promise<FeatureExtractor | null> {
   if (extractor) return extractor;
 
   try {
-    const transformers = (await import('@huggingface/transformers')) as unknown as {
+    // The specifier is a variable on purpose, and not as a style preference.
+    // TypeScript resolves a literal dynamic import at compile time, so a literal
+    // here would fail `tsc` on any checkout without the optional dependency,
+    // which is every CI run. A variable specifier is not resolved, so the build
+    // stays honest about the dependency being optional.
+    const specifier = '@huggingface/transformers';
+    const transformers = (await import(specifier)) as {
       pipeline: (task: string, model: string) => Promise<FeatureExtractor>;
     };
     extractor = await transformers.pipeline('feature-extraction', EMBEDDING_MODEL);
