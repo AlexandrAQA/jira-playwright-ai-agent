@@ -112,6 +112,11 @@ npm run metrics -- --write                     # regenerate the table above
 browser, so the comparison is between two pipelines that both actually ran rather than
 between a pipeline and a recollection of one.
 
+One caveat worth stating rather than hiding: the knowledge base already covers the pages
+these tickets touch, so the measured gap is the steady state, what a ticket costs once the
+app is known. It is not what the very first ticket against an unfamiliar app costs, and
+the gap there is smaller, because that run has to do the recon either way.
+
 ## Architecture
 
 | Role         | Component      | Responsibility                                           |
