@@ -21,6 +21,7 @@ import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import 'dotenv/config';
 
+import { resolveClaudeCli } from '../src/claude-cli';
 import {
   appendRun,
   parseAgentResult,
@@ -28,17 +29,6 @@ import {
   type Strategy,
   totalTokens,
 } from '../src/metrics';
-
-/**
- * Never spawn this through a shell.
- *
- * With `shell: true` Node concatenates the arguments instead of escaping them,
- * so a prompt containing spaces is split into separate arguments and the agent
- * receives nonsense. That is exactly what DEP0190 warns about, and it cost one
- * measured run that reported success while doing nothing at all. On Windows the
- * npm shim is `claude.cmd`, which spawns fine without a shell.
- */
-const CLAUDE_BIN = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 
 interface Options {
   ticket: string;
@@ -120,9 +110,11 @@ function run(options: Options): void {
   const specStampBefore = existsSync(specPath) ? statSync(specPath).mtimeMs : null;
 
   const startedAt = Date.now();
-  // stdin is closed rather than left as an open pipe: the CLI otherwise waits
+  const cli = resolveClaudeCli();
+  // No shell, and the real binary rather than the npm shim: see src/claude-cli.ts.
+  // stdin is closed rather than left as an open pipe, otherwise the CLI waits
   // for input it will never get and reports "no stdin data received in 3s".
-  const child = spawn(CLAUDE_BIN, args, { stdio: ['ignore', 'pipe', 'inherit'] });
+  const child = spawn(cli, args, { stdio: ['ignore', 'pipe', 'inherit'] });
 
   let stdout = '';
   child.stdout.on('data', (chunk: Buffer) => {
@@ -130,7 +122,7 @@ function run(options: Options): void {
   });
 
   child.on('error', (err) => {
-    console.error(`Could not start ${CLAUDE_BIN}: ${err.message}`);
+    console.error(`Could not start ${cli}: ${err.message}`);
     process.exit(1);
   });
 

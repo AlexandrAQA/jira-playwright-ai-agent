@@ -21,6 +21,7 @@
  * ---------------------------------------------------------------------------
  */
 import { spawn } from 'node:child_process';
+import { resolveClaudeCli } from '../src/claude-cli';
 import { search } from '../src/jira';
 
 const LABEL = process.env.WATCH_LABEL || 'playwright_agent';
@@ -29,9 +30,6 @@ const DRY_RUN = process.env.WATCH_DRY_RUN === '1';
 const ONESHOT = process.env.WATCH_ONESHOT === '1'; // run one cycle then exit (for testing)
 const MODEL = process.env.WATCH_MODEL || 'haiku'; // model for the autonomous agent (haiku | sonnet | opus)
 const PROJECT_KEY = process.env.JIRA_PROJECT_KEY || 'AIQA';
-
-/** The npm shim is `claude.cmd` on Windows. Spawned without a shell, see below. */
-const CLAUDE_BIN = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 
 // Tickets we already handed to the agent in this run (avoids double-trigger while
 // the agent is still working, before it moves the ticket out of "To Do").
@@ -65,10 +63,8 @@ function runAgent(key: string): Promise<void> {
     }
 
     log(`running agent on ${key} ...`);
-    // No shell: with `shell: true` Node concatenates arguments instead of
-    // escaping them, so the prompt is split on its spaces and the agent gets
-    // nonsense. On Windows the npm shim is claude.cmd.
-    const child = spawn(CLAUDE_BIN, args, { stdio: ['ignore', 'inherit', 'inherit'] });
+    // No shell, and the real binary rather than the npm shim: see src/claude-cli.ts.
+    const child = spawn(resolveClaudeCli(), args, { stdio: ['ignore', 'inherit', 'inherit'] });
     child.on('exit', (code) => {
       log(`agent on ${key} finished (exit ${code})`);
       resolve();
