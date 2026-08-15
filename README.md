@@ -89,6 +89,29 @@ entered only for what the knowledge base did not answer, and left as soon as the
 are in hand. **Phase B** is writing and fixing through the CLI, and it never reopens the
 browser: a failing assertion is diagnosed from the error text, not from another snapshot.
 
+## What a run costs
+
+Every measured run appends a line to `metrics/runs.jsonl`, and the table below is
+generated from that file by `npm run metrics -- --write`. No number here is typed by
+hand, so none of them can drift away from the data.
+
+<!-- metrics:start -->
+
+No runs recorded yet. Run `npm run agent -- AIQA-N` to measure one.
+
+<!-- metrics:end -->
+
+```bash
+npm run agent -- AIQA-7                        # measured run, current pipeline
+npm run agent -- AIQA-7 --strategy mcp-only    # measured run, original pipeline
+npm run agent -- AIQA-7 --dry-run              # print the command, record nothing
+npm run metrics -- --write                     # regenerate the table above
+```
+
+`mcp-only` re-runs the original loop on purpose, exploring every selector through the
+browser, so the comparison is between two pipelines that both actually ran rather than
+between a pipeline and a recollection of one.
+
 ## Architecture
 
 | Role         | Component      | Responsibility                                           |

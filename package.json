@@ -14,6 +14,8 @@
     "test:unit": "playwright test --project=unit",
     "test:e2e": "playwright test --project=chromium",
     "kb": "tsx scripts/kb.ts",
+    "agent": "tsx scripts/run-agent.ts",
+    "metrics": "tsx scripts/metrics-report.ts",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report",
     "prepare": "husky"
