@@ -30,7 +30,7 @@ jobs:
           node-version: 24
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --omit=optional
 
       - name: Formatting
         run: npm run format:check
@@ -53,8 +53,13 @@ jobs:
 
       # Known vulnerabilities. Dependabot opens the fix PRs; this step is what
       # stops an advisory from sitting unnoticed between those PRs.
+      #
+      # --omit=optional is not a way of looking away. The only optional
+      # dependency is the embedding model used to build the knowledge index on a
+      # developer machine; the two lines above install without it, so auditing
+      # it here would be auditing code that is not present in this job.
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --omit=optional
 
   e2e:
     needs: quality
@@ -73,7 +78,7 @@ jobs:
           node-version: 24
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --omit=optional
 
       # Without this the whole suite fails one timeout at a time and the run
       # takes ten minutes to say "the secret is missing".

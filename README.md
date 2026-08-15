@@ -86,18 +86,50 @@ The agent queries it first and only explores the gaps.
 npm run kb search "how do I assert the cart is empty"
 ```
 
-Ranking is BM25 over heading-sized chunks, implemented in `src/knowledge.ts` with no
-dependencies. Term frequency saturates, rare terms outweigh common ones, long sections do
-not win by being long. Headings are weighted above body text and every chunk inherits its
-document title, so a query naming a page reaches that page's sections.
-
 Markdown rather than a vector store is a deliberate choice at this size: it diffs in a
 pull request, a human can fix a wrong selector by editing one line, and the agent appends
-to it with the tools it already has. Embeddings are the next step, not a prerequisite.
+to it with the tools it already has.
 
-`tests/unit/knowledge.spec.ts` pins the ranking against a synthetic corpus and asserts
-that the real knowledge base still answers the questions the agent asks. A section renamed
-out from under the agent fails the build instead of quietly degrading its output.
+Retrieval runs on **local sentence embeddings** (all-MiniLM-L6-v2 through
+transformers.js), with a **BM25** implementation in `src/knowledge.ts` as the baseline and
+the fallback. No API key, no text leaving the machine.
+
+### Which retriever, and why that one
+
+The obvious answer is "hybrid, fuse both". It was built, measured, and it lost.
+`npm run kb:eval` scores all three against 25 queries in two suites: one paraphrased into
+everyday words, one written in exact tokens the way an agent quotes a ticket.
+
+| Retrieval              | recall@3 | MRR   |
+| ---------------------- | -------- | ----- |
+| BM25 only              | 64%      | 0.593 |
+| **Embeddings only**    | **84%**  | 0.780 |
+| Hybrid (fused on rank) | 80%      | 0.673 |
+
+The split behind those totals is the interesting part. On exact tokens BM25 is perfect and
+embeddings are not: 100% against 80% at rank one. On paraphrases it inverts hard, 40%
+against 73%. Fusing them should capture both, and it does not, because on a paraphrased
+question BM25 does not merely rank worse, it votes confidently for wrong sections and
+displaces correct ones.
+
+Weighting the fusion towards the vectors was tried across weights 1 to 10. The curve came
+back 76, 80, 80, 80, 76, 84, which is the shape of fitting noise on 25 queries rather than
+of a real gain. So the simpler thing ships. The harness stays, because a bigger corpus
+gives exact matching more to work with and the answer may flip.
+
+### How it stays cheap and installable
+
+Chunk vectors are built once by `npm run kb:index` and committed as 91 KB of JSON, so the
+repository carries semantic retrieval without every checkout needing a native ONNX
+runtime. `@huggingface/transformers` is an **optional** dependency loaded dynamically: it
+pulls `onnxruntime-node` and `sharp`, which carry high-severity advisories with no fix
+available, so CI installs with `--omit=optional` and that code is simply not present
+there. Retrieval degrades to BM25 rather than failing, and the CLI prints which retriever
+actually ran, because a silent fallback is how you spend an afternoon debugging retrieval
+quality that was never the problem.
+
+`tests/unit/knowledge.spec.ts` and `tests/unit/retrieval.spec.ts` pin the ranking and the
+fallback with vectors injected by hand, so none of it needs the model to run in CI.
 
 ## Cost discipline: three sources, in order
 

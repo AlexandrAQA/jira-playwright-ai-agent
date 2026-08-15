@@ -9,6 +9,8 @@ for the Jira ticket `AIQA-N`.
 - Jira: helper CLI `src/jira.ts`. Run it with `npx tsx src/jira.ts <command> ...`.
 - Knowledge base: `npx tsx scripts/kb.ts search "<question>"`. Selectors and page
   behaviour already learned on earlier tickets. **Always the first place to look.**
+  Ask it in plain words; it ranks on meaning, not on matching words. Add `--bm25` when you
+  are looking for an exact token such as a `data-test` value or a method name.
 - Browser: Playwright MCP (`browser_*` tools). Use it to inspect the real DOM.
 - Tests: place them in `tests/generated/`. Run with `npx playwright test`.
 - Credentials and secrets: only from `.env` (via `process.env`). Never hardcode.
@@ -61,8 +63,11 @@ element, and record what you find in the knowledge base afterwards.
    Use `npm run lint:fix` and `npm run format` to fix what is auto-fixable.
 8. **Feed the knowledge base:** if step 4 discovered anything new (a selector, a quirk, a
    page that behaves unexpectedly), append it to the right file in `knowledge/` under a
-   `##` heading that names the question it answers. Then `npx playwright test --project=unit`
-   to confirm retrieval still works. This is what makes the next ticket cheaper than this one.
+   `##` heading that names the question it answers. Then run `npm run kb:index` to rebuild
+   the embedding index and `npx playwright test --project=unit` to confirm retrieval still
+   works. This is what makes the next ticket cheaper than this one.
+   If `kb:index` reports the model is missing, say so and carry on: retrieval falls back to
+   BM25, and a stale index is worse than an honest note in the pull request.
 9. **Propose the work, do not merge it:** `npm run pr -- AIQA-N`. This puts the spec and any
    knowledge-base change on the branch `agent/aiqa-N` and raises a pull request.
    **Never commit to `main` and never merge your own pull request.** A human reviews it.
