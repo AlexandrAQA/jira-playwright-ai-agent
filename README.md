@@ -2,16 +2,25 @@
 
 [![tests](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml)
 
-An AI agent that turns a Jira ticket into a passing end-to-end test, hands-free.
-It reads a ticket, explores the web app through a real browser, generates and runs a
-Playwright test, makes it green, then writes the result back to Jira and moves the
-ticket across the board. A human stays in the loop for irreversible actions.
+**A Jira ticket goes in. A passing Playwright test comes out, and the ticket closes itself.**
+
+![Full run: a Jira ticket becomes a green Playwright test and the ticket is closed](docs/demo.gif)
+
+The agent reads a ticket, explores the real web app in a browser to find real selectors,
+generates an end-to-end test in Playwright and TypeScript, runs it until it is green,
+writes the result back to the ticket and moves it across the board. A human stays in the
+loop for irreversible actions.
 
 Target app under test: [SauceDemo](https://www.saucedemo.com).
 
-## Demo
+## Why this is more than "an LLM writes tests"
 
-![Full run: a Jira ticket becomes a green Playwright test and the ticket is closed](docs/demo.gif)
+- **Real selectors, not guesses.** The agent opens the actual page through Playwright MCP
+  and reads the DOM, instead of inventing selectors from the wording of the ticket.
+- **A human owns the irreversible steps.** Moving a ticket or writing to its description
+  asks for confirmation in interactive runs; autonomous runs are opt-in per ticket.
+- **Every generated test lands in CI.** Each push and pull request runs the whole suite on
+  GitHub Actions, so a test the agent wrote yesterday keeps being verified today.
 
 ## Architecture
 
