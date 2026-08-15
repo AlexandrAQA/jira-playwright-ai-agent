@@ -23,6 +23,10 @@ Target app under test: [SauceDemo](https://www.saucedemo.com).
   GitHub Actions, so a test the agent wrote yesterday keeps being verified today.
 - **A green test still has to earn its place.** A dedicated quality gate rejects specs that
   pass while proving nothing, and CI runs it before a single browser is installed.
+- **The cost is measured, not asserted.** Consulting a knowledge base first and keeping the
+  browser out of the fix loop cut a ticket by **57% in tokens and half in wall clock**,
+  measured by running the same tickets through both pipelines. See
+  [what a run costs](#what-a-run-costs).
 
 ## Quality gates
 
@@ -97,7 +101,12 @@ hand, so none of them can drift away from the data.
 
 <!-- metrics:start -->
 
-No runs recorded yet. Run `npm run agent -- AIQA-N` to measure one.
+| Strategy   | Runs | Avg tokens | Avg cost, USD | Avg turns | Avg duration |
+| ---------- | ---- | ---------- | ------------- | --------- | ------------ |
+| `mcp-only` | 2    | 2,242,279  | 0.3384        | 43.0      | 224.6s       |
+| `kb-first` | 2    | 965,029    | 0.1618        | 23.0      | 109.0s       |
+
+`kb-first` uses 57% fewer tokens per ticket than `mcp-only`, measured over 2 and 2 runs.
 
 <!-- metrics:end -->
 

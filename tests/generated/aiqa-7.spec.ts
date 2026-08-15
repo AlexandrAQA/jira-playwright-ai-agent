@@ -1,9 +1,10 @@
 import { expect, test } from '../support/fixtures';
 
 const PRODUCT = 'Sauce Labs Backpack';
+const PRODUCT_PRICE = '$29.99';
 
-test.describe('AIQA-7: Full checkout flow', () => {
-  test('completes checkout and shows the order confirmation', async ({
+test.describe('AIQA-7: Full checkout flow reaches the order confirmation', () => {
+  test('login -> add product -> cart -> checkout form -> overview -> confirmation', async ({
     page,
     loggedIn,
     cartPage,
@@ -18,23 +19,22 @@ test.describe('AIQA-7: Full checkout flow', () => {
       await expect(cartPage.itemNames).toHaveText(PRODUCT);
     });
 
-    await test.step('Click Checkout and fill First Name, Last Name, and Zip/Postal Code', async () => {
+    await test.step('Click Checkout and fill First Name, Last Name and Zip/Postal Code', async () => {
       await cartPage.checkout();
       await expect(page).toHaveURL(/checkout-step-one\.html/);
-      await checkoutPage.fillCustomerInfo();
+      await checkoutPage.fillCustomerInfo('John', 'Doe', '12345');
     });
 
-    await test.step('Verify the overview page: the item and a consistent total', async () => {
+    await test.step('Verify the overview: exactly the product added, at its listed price', async () => {
       await expect(page).toHaveURL(/checkout-step-two\.html/);
       await expect(checkoutPage.itemNames).toHaveText(PRODUCT);
+      await expect(checkoutPage.itemPrices).toHaveText(PRODUCT_PRICE);
+
+      await expect(checkoutPage.subtotalLabel).toHaveText(`Item total: ${PRODUCT_PRICE}`);
+      await expect(checkoutPage.taxLabel).toBeVisible();
+      await expect(checkoutPage.totalLabel).toBeVisible();
 
       const { subtotal, tax, total } = await checkoutPage.totals();
-      expect(subtotal).toBeGreaterThan(0);
-      expect(tax).toBeGreaterThan(0);
-
-      // The single line item drives the item total, and the grand total adds the tax.
-      const itemPrice = Number((await checkoutPage.itemPrices.innerText()).replace(/[^0-9.]/g, ''));
-      expect(subtotal).toBeCloseTo(itemPrice, 2);
       expect(total).toBeCloseTo(subtotal + tax, 2);
     });
 

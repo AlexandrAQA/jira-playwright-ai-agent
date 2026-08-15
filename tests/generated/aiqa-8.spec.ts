@@ -1,47 +1,58 @@
-import { expect, test } from '../support/fixtures';
+import { test, expect } from '../support/fixtures';
 
-const PRODUCT = 'Sauce Labs Backpack';
-const PRODUCT_PRICE = '$29.99';
+test('Full checkout flow: login, cart, checkout form, overview, confirmation', async ({
+  loggedIn: inventoryPage,
+  cartPage,
+  checkoutPage,
+  page,
+}) => {
+  await test.step('Add Sauce Labs Backpack to cart', async () => {
+    await inventoryPage.addToCart('Sauce Labs Backpack');
+  });
 
-test.describe('AIQA-8: Full checkout flow reaches the order confirmation', () => {
-  test('login -> cart -> checkout form -> overview -> confirmation', async ({
-    page,
-    loggedIn,
-    cartPage,
-    checkoutPage,
-  }) => {
-    await test.step('Add a product to the cart and open the cart', async () => {
-      await loggedIn.addToCart(PRODUCT);
-      await expect(loggedIn.cartBadge).toHaveText('1');
+  await test.step('Open cart', async () => {
+    await inventoryPage.openCart();
+    await page.waitForURL(/cart\.html/);
+  });
 
-      await loggedIn.openCart();
-      await expect(page).toHaveURL(/cart\.html/);
-      await expect(cartPage.itemNames).toHaveText(PRODUCT);
-    });
+  await test.step('Verify item is in cart', async () => {
+    const itemName = page.locator('[data-test="inventory-item-name"]');
+    await expect(itemName).toContainText('Sauce Labs Backpack');
+  });
 
-    await test.step('Click Checkout and fill First Name, Last Name and Zip/Postal Code', async () => {
-      await cartPage.checkout();
-      await expect(page).toHaveURL(/checkout-step-one\.html/);
-      await checkoutPage.fillCustomerInfo();
-    });
+  await test.step('Click Checkout', async () => {
+    await cartPage.checkout();
+    await page.waitForURL(/checkout-step-one\.html/);
+  });
 
-    await test.step('Verify the overview: exactly the product added, at its listed price', async () => {
-      await expect(page).toHaveURL(/checkout-step-two\.html/);
-      await expect(checkoutPage.itemNames).toHaveText(PRODUCT);
-      await expect(checkoutPage.itemPrices).toHaveText(PRODUCT_PRICE);
+  await test.step('Fill customer information and continue', async () => {
+    await checkoutPage.fillCustomerInfo();
+    await page.waitForURL(/checkout-step-two\.html/);
+  });
 
-      await expect(checkoutPage.subtotalLabel).toHaveText(`Item total: ${PRODUCT_PRICE}`);
-      await expect(checkoutPage.taxLabel).toBeVisible();
-      await expect(checkoutPage.totalLabel).toBeVisible();
+  await test.step('Verify overview page items and prices', async () => {
+    const itemName = page.locator('[data-test="inventory-item-name"]');
+    await expect(itemName).toContainText('Sauce Labs Backpack');
 
-      const { subtotal, tax, total } = await checkoutPage.totals();
-      expect(total).toBeCloseTo(subtotal + tax, 2);
-    });
+    const itemPrice = page.locator('[data-test="inventory-item-price"]');
+    await expect(itemPrice).toHaveText('$29.99');
 
-    await test.step('Click Finish and verify the confirmation message', async () => {
-      await checkoutPage.finish();
-      await expect(page).toHaveURL(/checkout-complete\.html/);
-      await expect(checkoutPage.completeHeader).toHaveText('Thank you for your order!');
-    });
+    const summary = await checkoutPage.totals();
+    expect(summary.subtotal).toBe(29.99);
+    expect(summary.total).toBe(summary.subtotal + summary.tax);
+  });
+
+  await test.step('Click Finish', async () => {
+    await checkoutPage.finish();
+    await page.waitForURL(/checkout-complete\.html/);
+  });
+
+  await test.step('Verify order confirmation message', async () => {
+    const confirmationHeader = page.locator('[data-test="complete-header"]');
+    await expect(confirmationHeader).toContainText('Thank you for your order!');
+  });
+
+  await test.step('Verify cart is empty', async () => {
+    await expect(inventoryPage.cartBadge).toHaveCount(0);
   });
 });
