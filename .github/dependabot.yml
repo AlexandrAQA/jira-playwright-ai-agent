@@ -20,6 +20,12 @@ updates:
           - 'prettier'
           - 'tsx'
           - '@types/*'
+    ignore:
+      # typescript-eslint 8 declares "typescript": ">=4.8.4 <6.1.0", so a major
+      # TypeScript bump breaks peer resolution and npm ci fails before anything
+      # is even linted. Minor and patch updates still come through.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: 'deps'
 
