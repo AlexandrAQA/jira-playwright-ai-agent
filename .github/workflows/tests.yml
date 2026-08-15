@@ -49,6 +49,11 @@ jobs:
 
   e2e:
     needs: quality
+    # GitHub withholds repository secrets from Dependabot pull requests on
+    # purpose, so the login credentials would be empty and every test would fail
+    # on a timeout. Dependency updates get the quality job, which needs no
+    # secrets; the suite runs again on main once the update is merged.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -60,6 +65,18 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Without this the whole suite fails one timeout at a time and the run
+      # takes ten minutes to say "the secret is missing".
+      - name: Check the test credentials are available
+        env:
+          SAUCE_USER: ${{ secrets.SAUCE_USER }}
+          SAUCE_PASSWORD: ${{ secrets.SAUCE_PASSWORD }}
+        run: |
+          if [ -z "$SAUCE_USER" ] || [ -z "$SAUCE_PASSWORD" ]; then
+            echo "::error::SAUCE_USER / SAUCE_PASSWORD are not available to this run."
+            exit 1
+          fi
 
       - run: npx playwright install --with-deps chromium
 
