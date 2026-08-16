@@ -185,7 +185,7 @@ the gap there is smaller, because that run has to do the recon either way.
 flowchart TD
     JIRA[("Jira<br/>AIQA board")]
     AGENT["Claude Code<br/>the loop, follows CLAUDE.md"]
-    KB[("knowledge/<br/>BM25 retrieval")]
+    KB[("knowledge/<br/>local embeddings, BM25 fallback")]
     MCP["Playwright MCP<br/>real browser"]
     CLI["Playwright CLI<br/>run and fix"]
     SPEC["tests/generated/<br/>aiqa-N.spec.ts"]

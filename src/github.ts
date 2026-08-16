@@ -41,6 +41,23 @@ export function branchFor(ticket: string): string {
   return `agent/${ticket.toLowerCase()}`;
 }
 
+/**
+ * The paths one ticket is allowed to have produced.
+ *
+ * Deliberately a short list rather than the whole tree: whatever else is dirty
+ * in the working copy must not ride along into an agent pull request.
+ *
+ * Page objects belong here even though they are not "generated" output. The
+ * playbook tells the agent to add a missing element to the page object first and
+ * only then use it from the spec, so excluding them ships a spec that calls a
+ * method `main` does not have, and CI fails on types before it ever reaches a
+ * browser. The rule that authorises the edit and the rule that stages it have to
+ * agree.
+ */
+export function agentPaths(ticket: string): string[] {
+  return [`tests/generated/${ticket.toLowerCase()}.spec.ts`, 'knowledge', 'tests/support/pages'];
+}
+
 /** The page GitHub shows for opening a pull request from a pushed branch. */
 export function compareUrl(repo: Repo, branch: string): string {
   return `https://github.com/${repo.owner}/${repo.name}/compare/${branch}?expand=1`;

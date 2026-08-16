@@ -24,6 +24,7 @@ import 'dotenv/config';
 import axios from 'axios';
 
 import {
+  agentPaths,
   branchFor,
   compareUrl,
   parseGitHubRemote,
@@ -80,13 +81,12 @@ async function main(): Promise<void> {
   }
 
   const branch = branchFor(ticket);
-  const spec = `tests/generated/${ticket.toLowerCase()}.spec.ts`;
-  // Only what this ticket may legitimately have produced.
-  const paths = [spec, 'knowledge'];
+  // Only what this ticket may legitimately have produced. See src/github.ts.
+  const paths = agentPaths(ticket);
   const changed = git('status', '--porcelain', '--', ...paths);
 
   if (!changed) {
-    console.log(`Nothing to propose: ${spec} and knowledge/ are unchanged.`);
+    console.log(`Nothing to propose: ${paths.join(', ')} are unchanged.`);
     return;
   }
 
