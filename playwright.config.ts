@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import 'dotenv/config';
+import './src/env';
 
 /**
  * Playwright configuration.

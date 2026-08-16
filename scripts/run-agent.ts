@@ -19,9 +19,9 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import 'dotenv/config';
 
 import { resolveClaudeCli } from '../src/claude-cli';
+import '../src/env';
 import {
   appendRun,
   parseAgentResult,

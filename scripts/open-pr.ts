@@ -19,9 +19,10 @@
  * ---------------------------------------------------------------------------
  */
 import { spawnSync } from 'node:child_process';
-import 'dotenv/config';
 
 import axios from 'axios';
+
+import '../src/env';
 
 import {
   agentPaths,
