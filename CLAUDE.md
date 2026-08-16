@@ -58,22 +58,26 @@ element, and record what you find in the knowledge base afterwards.
    ticket step in `test.step('...', async () => { ... })`.
 6. **Run and make it green:** `npx playwright test tests/generated/aiqa-N.spec.ts`.
    On failure, read the error, fix the selector/assertion, rerun until it passes.
-7. **Pass the quality gates:** `npm run lint:tests && npm run lint && npm run format:check`.
+7. **Prove the test can fail:** `npm run mutation -- AIQA-N`. This disables, one at a
+   time, each page-object action the spec uses and requires the spec to fail without it.
+   A spec that stays green when its action never happens is not testing that action, and
+   green alone cannot tell you which of the two you wrote.
+8. **Pass the quality gates:** `npm run lint:tests && npm run lint && npm run format:check`.
    Green is not enough: a test that skips these would be rejected by CI anyway.
    Use `npm run lint:fix` and `npm run format` to fix what is auto-fixable.
-8. **Feed the knowledge base:** if step 4 discovered anything new (a selector, a quirk, a
+9. **Feed the knowledge base:** if step 4 discovered anything new (a selector, a quirk, a
    page that behaves unexpectedly), append it to the right file in `knowledge/` under a
    `##` heading that names the question it answers. Then run `npm run kb:index` to rebuild
    the embedding index and `npx playwright test --project=unit` to confirm retrieval still
    works. This is what makes the next ticket cheaper than this one.
    If `kb:index` reports the model is missing, say so and carry on: retrieval falls back to
    BM25, and a stale index is worse than an honest note in the pull request.
-9. **Propose the work, do not merge it:** `npm run pr -- AIQA-N`. This puts the spec and any
-   knowledge-base change on the branch `agent/aiqa-N` and raises a pull request.
-   **Never commit to `main` and never merge your own pull request.** A human reviews it.
-10. **Append the result to Jira:** `npx tsx src/jira.ts append AIQA-N "Automated test:
+10. **Propose the work, do not merge it:** `npm run pr -- AIQA-N`. This puts the spec and any
+    knowledge-base change on the branch `agent/aiqa-N` and raises a pull request.
+    **Never commit to `main` and never merge your own pull request.** A human reviews it.
+11. **Append the result to Jira:** `npx tsx src/jira.ts append AIQA-N "Automated test:
 <what was automated>. File: tests/generated/aiqa-N.spec.ts. Run: PASSED."`.
-11. **Close it:** `npx tsx src/jira.ts move AIQA-N "Done"`.
+12. **Close it:** `npx tsx src/jira.ts move AIQA-N "Done"`.
 
 ## Test authoring rules
 
@@ -88,6 +92,12 @@ element, and record what you find in the knowledge base afterwards.
   object exposes yet, **add it to the page object first**, then use it from the spec.
 - Everything above is enforced by `npm run lint:tests`, which runs in CI before the tests.
 
+- **Never reach past Playwright to the DOM.** No `document.getElementById(...).click()`
+  inside `page.evaluate`, no `{ force: true }`. Those skip the visibility, enabled and
+  stability checks, so the test passes whether or not a real user could have done it.
+  If a click seems unreliable, Playwright's auto-waiting already handles animation:
+  the honest locator is almost always correct and the bypass is almost always a
+  green test that proves nothing. `npm run lint:tests` rejects both.
 - Role-based selectors: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText`.
   SauceDemo exposes stable `data-test` attributes, so `getByTestId(...)` is also fine.
   Avoid brittle CSS/XPath tied to markup.

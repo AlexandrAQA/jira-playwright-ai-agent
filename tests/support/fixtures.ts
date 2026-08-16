@@ -6,10 +6,15 @@
  * SauceDemo changes its login markup, one file changes, not every spec.
  */
 import { test as base } from '@playwright/test';
+import { applyMutation } from './mutate';
 import { CartPage } from './pages/cart.page';
 import { CheckoutPage } from './pages/checkout.page';
 import { InventoryPage } from './pages/inventory.page';
 import { LoginPage } from './pages/login.page';
+
+// No-ops one action when MUTATE_METHOD is set, so `npm run mutation` can
+// require a spec to fail. Does nothing on a normal run.
+applyMutation();
 
 type Fixtures = {
   loginPage: LoginPage;

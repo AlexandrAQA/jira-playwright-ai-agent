@@ -22,7 +22,8 @@
     "report": "playwright show-report",
     "prepare": "husky",
     "kb:index": "tsx scripts/kb-index.ts",
-    "kb:eval": "tsx scripts/kb-eval.ts"
+    "kb:eval": "tsx scripts/kb-eval.ts",
+    "mutation": "tsx scripts/mutation-check.ts"
   },
   "keywords": [],
   "author": "",
