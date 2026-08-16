@@ -46,3 +46,16 @@ an assertion on that array being ordered rather than a comparison of text labels
 `openProduct('Sauce Labs Backpack')` filters the product names by text and clicks the
 match. Do not click by index: the list order changes with sorting, so an index-based
 click passes for the wrong reason.
+
+## Navigation menu and logout
+
+The header contains a hamburger menu button with id `react-burger-menu-btn`. It can be clicked
+via `getByRole('button', { name: 'Open Menu' })`. When open, the sidebar exposes a logout link
+with `id="logout_sidebar_link"` and `data-test="logout-sidebar-link"`.
+
+**Important:** The logout link must be clicked via `page.evaluate()`, not via Playwright's
+`click()` method, because the menu animation and positioning make the element not reliably
+clickable through the normal interaction API. Use `page.evaluate(() => { document.getElementById('logout_sidebar_link')?.click(); })` after opening the menu.
+
+The `logout()` method on `InventoryPage` handles both the menu open and the logout click.
+Redirect to the login page happens immediately after the logout click, so `page.waitForURL('/')` should follow.

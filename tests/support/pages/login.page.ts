@@ -33,4 +33,8 @@ export class LoginPage {
     await this.open();
     await this.login(process.env.SAUCE_USER!, process.env.SAUCE_PASSWORD!);
   }
+
+  async isLoginButtonVisible(): Promise<boolean> {
+    return this.loginButton.isVisible();
+  }
 }

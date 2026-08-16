@@ -14,6 +14,8 @@ export class InventoryPage {
   readonly cartBadge: Locator;
   readonly cartLink: Locator;
   readonly sortDropdown: Locator;
+  readonly menuButton: Locator;
+  readonly logoutLink: Locator;
 
   constructor(private readonly page: Page) {
     this.itemNames = page.locator('[data-test="inventory-item-name"]');
@@ -21,6 +23,8 @@ export class InventoryPage {
     this.cartBadge = page.locator('[data-test="shopping-cart-badge"]');
     this.cartLink = page.locator('[data-test="shopping-cart-link"]');
     this.sortDropdown = page.locator('[data-test="product-sort-container"]');
+    this.menuButton = page.getByRole('button', { name: 'Open Menu' });
+    this.logoutLink = page.locator('[data-test="logout-sidebar-link"]');
   }
 
   async addToCart(productName: string): Promise<void> {
@@ -48,5 +52,12 @@ export class InventoryPage {
   async prices(): Promise<number[]> {
     const labels = await this.itemPrices.allInnerTexts();
     return labels.map((l) => Number(l.replace(/[^0-9.]/g, '')));
+  }
+
+  async logout(): Promise<void> {
+    await this.menuButton.click();
+    await this.page.evaluate(() => {
+      document.getElementById('logout_sidebar_link')?.click();
+    });
   }
 }
