@@ -30,6 +30,20 @@ export const RUNS_FILE = join(__dirname, '..', 'metrics', 'runs.jsonl');
  */
 export type Strategy = 'mcp-only' | 'kb-first';
 
+/**
+ * Whether the knowledge base already covered the ground this ticket walked.
+ *
+ * `warm` is the steady state: the app is known, and the saving is what a
+ * knowledge base buys you on the hundredth ticket. `cold` is first contact,
+ * where the recon has to happen either way and there is nothing to save.
+ *
+ * The distinction exists because a single cold run averaged in with warm ones
+ * is not a slower result, it is a different measurement wearing the same label,
+ * and it will quietly reverse the headline. Runs are compared within a coverage
+ * band, never across.
+ */
+export type Coverage = 'warm' | 'cold';
+
 export interface TokenUsage {
   input: number;
   output: number;
@@ -43,6 +57,8 @@ export interface RunRecord {
   timestamp: string;
   model: string;
   strategy: Strategy;
+  /** Absent on runs recorded before the field existed; treated as `warm`. */
+  coverage?: Coverage;
   durationMs: number;
   numTurns: number;
   usage: TokenUsage;
@@ -153,13 +169,22 @@ export interface StrategySummary {
 const mean = (values: number[]): number =>
   values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length;
 
-/** One row per strategy, in a fixed order so the table does not shuffle. */
-export function summarise(runs: RunRecord[]): StrategySummary[] {
+/** Runs recorded before the field existed were all on ground the base knew. */
+export const coverageOf = (run: RunRecord): Coverage => run.coverage ?? 'warm';
+
+/**
+ * One row per strategy, in a fixed order so the table does not shuffle.
+ *
+ * Restricted to one coverage band, because averaging a cold run in with warm
+ * ones compares two different questions and answers neither.
+ */
+export function summarise(runs: RunRecord[], coverage: Coverage = 'warm'): StrategySummary[] {
   const order: Strategy[] = ['mcp-only', 'kb-first'];
+  const inBand = runs.filter((r) => coverageOf(r) === coverage);
 
   return order
     .map((strategy) => {
-      const subset = runs.filter((r) => r.strategy === strategy);
+      const subset = inBand.filter((r) => r.strategy === strategy);
       return {
         strategy,
         runs: subset.length,
@@ -179,10 +204,22 @@ export function summarise(runs: RunRecord[]): StrategySummary[] {
  * one thing this function must never do is invent a plausible number: an
  * unmeasured claim in a README is worse than an absent one.
  */
-export function toMarkdownTable(summary: StrategySummary[]): string {
+export function toMarkdownTable(summary: StrategySummary[], excludedCold = 0): string {
   if (summary.length === 0) {
     return 'No runs recorded yet. Run `npm run agent -- AIQA-N` to measure one.';
   }
+
+  // Excluded runs are named, not dropped in silence. A number that quietly
+  // leaves data out is the same shape of dishonesty as one that invents it.
+  const note =
+    excludedCold > 0
+      ? [
+          '',
+          `Measured on ground the knowledge base already covers. ${excludedCold} first-contact ` +
+            `run(s) are recorded in \`metrics/runs.jsonl\` and excluded here: on unfamiliar pages ` +
+            `the recon has to happen either way, so there is nothing for a knowledge base to save.`,
+        ]
+      : [];
 
   const header = [
     '| Strategy | Runs | Avg tokens | Avg cost, USD | Avg turns | Avg duration |',
@@ -197,7 +234,7 @@ export function toMarkdownTable(summary: StrategySummary[]): string {
 
   const withBoth = summary.length === 2 ? [comparison(summary[0], summary[1])] : [];
 
-  return [...header, ...rows, '', ...withBoth].join('\n').trim();
+  return [...header, ...rows, '', ...withBoth, ...note].join('\n').trim();
 }
 
 /** The one sentence a reader actually wants: did the change help, and by how much. */

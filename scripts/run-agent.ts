@@ -25,6 +25,7 @@ import '../src/env';
 import {
   appendRun,
   parseAgentResult,
+  type Coverage,
   type RunRecord,
   type Strategy,
   totalTokens,
@@ -33,6 +34,7 @@ import {
 interface Options {
   ticket: string;
   strategy: Strategy;
+  coverage: Coverage;
   model: string;
   dryRun: boolean;
 }
@@ -46,16 +48,20 @@ function parseArgs(argv: string[]): Options {
   const ticket = argv.find((a) => /^[A-Z]+-\d+$/.test(a));
   if (!ticket) {
     console.error(
-      'Usage: npm run agent -- AIQA-N [--strategy kb-first|mcp-only] [--model haiku] [--dry-run]',
+      'Usage: npm run agent -- AIQA-N [--strategy kb-first|mcp-only] [--coverage warm|cold] [--model haiku] [--dry-run]',
     );
     process.exit(1);
   }
 
   const strategy = flag('strategy') === 'mcp-only' ? 'mcp-only' : 'kb-first';
+  // Warm is the honest default: the knowledge base covers SauceDemo, so a run
+  // is first contact only when the operator says so.
+  const coverage: Coverage = flag('coverage') === 'cold' ? 'cold' : 'warm';
 
   return {
     ticket,
     strategy,
+    coverage,
     model: flag('model') ?? process.env.WATCH_MODEL ?? 'haiku',
     dryRun: argv.includes('--dry-run'),
   };
@@ -144,6 +150,7 @@ function run(options: Options): void {
       timestamp: new Date().toISOString(),
       model: options.model,
       strategy: options.strategy,
+      coverage: options.coverage,
       // Fall back to wall clock if the agent did not report its own duration.
       durationMs: parsed.durationMs || Date.now() - startedAt,
       numTurns: parsed.numTurns,

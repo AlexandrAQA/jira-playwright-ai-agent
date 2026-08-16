@@ -19,8 +19,8 @@
  * gate (`no-dom-bypass`), and the two tools are not substitutes.
  *
  * Not in CI: it needs browsers and runs the suite once per action, which is
- * minutes rather than seconds. It is step 6.5 of the workflow instead, run on
- * the one spec a ticket produced.
+ * minutes rather than seconds. It is step 7 of the workflow instead, run on the
+ * one spec a ticket produced.
  * ---------------------------------------------------------------------------
  */
 import { spawnSync } from 'node:child_process';

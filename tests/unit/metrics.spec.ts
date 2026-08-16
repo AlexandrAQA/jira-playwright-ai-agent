@@ -14,6 +14,7 @@ import { expect, test } from '@playwright/test';
 
 import {
   appendRun,
+  coverageOf,
   parseAgentResult,
   readRuns,
   type RunRecord,
@@ -141,6 +142,31 @@ test.describe('summarise', () => {
     expect(summarise(runs.filter((r) => r.strategy === 'kb-first')).map((s) => s.strategy)).toEqual(
       ['kb-first'],
     );
+  });
+
+  test('treats a run recorded before the coverage field as warm', () => {
+    // Otherwise the four runs behind the published figure would vanish from it.
+    expect(coverageOf(record({}))).toBe('warm');
+    expect(summarise(runs)[0].runs).toBe(2);
+  });
+
+  test('keeps a first-contact run out of the steady-state average', () => {
+    // A cold run averaged in with warm ones is not a slower result, it is a
+    // different measurement wearing the same label, and it reverses the headline.
+    const withCold = [
+      ...runs,
+      record({ strategy: 'kb-first', coverage: 'cold', usage: usage(999_999, 0) }),
+    ];
+    const [, kbFirst] = summarise(withCold);
+    expect(kbFirst.runs).toBe(1);
+    expect(kbFirst.avgTokens).toBe(500);
+  });
+
+  test('can report the cold band on its own', () => {
+    const cold = [record({ strategy: 'kb-first', coverage: 'cold', usage: usage(700, 0) })];
+    expect(summarise([...runs, ...cold], 'cold')).toEqual([
+      expect.objectContaining({ strategy: 'kb-first', runs: 1, avgTokens: 700 }),
+    ]);
   });
 });
 

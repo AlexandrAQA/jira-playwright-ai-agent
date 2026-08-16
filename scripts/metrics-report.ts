@@ -14,14 +14,17 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { readRuns, summarise, toMarkdownTable } from '../src/metrics';
+import { coverageOf, readRuns, summarise, toMarkdownTable } from '../src/metrics';
 
 const README = join(__dirname, '..', 'README.md');
 const START = '<!-- metrics:start -->';
 const END = '<!-- metrics:end -->';
 
 function main(): void {
-  const table = toMarkdownTable(summarise(readRuns()));
+  const runs = readRuns();
+  // Cold runs are counted, named in the note, and kept out of the average.
+  const cold = runs.filter((r) => coverageOf(r) === 'cold').length;
+  const table = toMarkdownTable(summarise(runs), cold);
 
   if (!process.argv.includes('--write')) {
     console.log(table);

@@ -66,6 +66,37 @@ credential, a brittle CSS or XPath selector, a copy-pasted login, a missing `tes
 
 On its first run it found ten such problems in tests that were already passing.
 
+### Where the gate looks, and why it grew
+
+It read `tests/generated/` alone until a run took a shortcut it never saw. The spec was
+clean; the page object clicked through `document.getElementById(...)` inside
+`page.evaluate`, which skips every actionability check, and the learning loop then wrote
+that technique into the knowledge base as a rule for every future ticket to follow.
+
+The blind spot was structural rather than unlucky: the playbook tells the agent to put a
+missing element in the page object first, so the gate was not looking where the playbook
+sends the work. It now covers all three surfaces the agent may write to, with rules per
+surface -- page objects reject DOM access and `force: true`, the knowledge base rejects
+entries prescribing a framework bypass.
+
+### Proving a test can fail
+
+A green test and a working test are different claims, and only one of them is visible
+from the outside.
+
+```bash
+npm run mutation -- AIQA-7
+```
+
+This disables one page-object action at a time and requires every spec that depends on it
+to fail without it. A spec that stays green while the action never happens is not testing
+that action. The whole suite currently passes: 29 checks, no survivors.
+
+It is honest about its reach. It catches "this spec does not depend on that action"; it
+does not catch a shortcut _inside_ an action, because clicking through the DOM still
+performs the action. That case belongs to the gate above. Two defects, two tools, neither
+a substitute for the other.
+
 Alongside it, the usual toolchain: ESLint 9 with `typescript-eslint` type-aware rules
 (a missing `await` on a locator is an error, not a warning), `eslint-plugin-playwright`,
 Prettier, `tsc --noEmit`, `npm audit`, Dependabot, and a husky pre-commit hook so the
@@ -161,6 +192,8 @@ hand, so none of them can drift away from the data.
 
 `kb-first` uses 57% fewer tokens per ticket than `mcp-only`, measured over 2 and 2 runs.
 
+Measured on ground the knowledge base already covers. 1 first-contact run(s) are recorded in `metrics/runs.jsonl` and excluded here: on unfamiliar pages the recon has to happen either way, so there is nothing for a knowledge base to save.
+
 <!-- metrics:end -->
 
 ```bash
@@ -174,10 +207,13 @@ npm run metrics -- --write                     # regenerate the table above
 browser, so the comparison is between two pipelines that both actually ran rather than
 between a pipeline and a recollection of one.
 
-One caveat worth stating rather than hiding: the knowledge base already covers the pages
-these tickets touch, so the measured gap is the steady state, what a ticket costs once the
-app is known. It is not what the very first ticket against an unfamiliar app costs, and
-the gap there is smaller, because that run has to do the recon either way.
+That caveat used to be a paragraph of prose asking you to take it on trust. It is now a
+field: every run records whether the knowledge base already covered the ground it walked,
+and the table averages within one band. A first-contact run costs far more and saves
+nothing, because the recon has to happen either way, and averaging one in with the rest
+does not produce a slower result, it produces a different measurement wearing the same
+label. That is not a hypothetical: the run that prompted the change would have reversed
+the headline on its own.
 
 ## Architecture
 
