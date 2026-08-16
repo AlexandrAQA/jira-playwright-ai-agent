@@ -3,14 +3,15 @@
 [![tests](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/tests.yml)
 [![report](https://github.com/AlexandrAQA/jira-playwright-ai-agent/actions/workflows/report.yml/badge.svg)](https://alexandraqa.github.io/jira-playwright-ai-agent/)
 
-**A Jira ticket goes in. A passing Playwright test comes out, and the ticket closes itself.**
+**A Jira ticket goes in. A pull request with a passing Playwright test comes out.**
 
-![Full run: a Jira ticket becomes a green Playwright test and the ticket is closed](docs/demo.gif)
+![Full run: a Jira ticket becomes a green Playwright test and a pull request awaiting review](docs/demo.gif)
 
 The agent reads a ticket, explores the real web app in a browser to find real selectors,
 generates an end-to-end test in Playwright and TypeScript, runs it until it is green,
-writes the result back to the ticket and moves it across the board. A human stays in the
-loop for irreversible actions.
+proves it can still fail, opens a pull request and moves the ticket to In Review. It never
+merges and never marks a ticket Done: both of those mean "a human checked this", and the
+agent is not that human.
 
 Target app under test: [SauceDemo](https://www.saucedemo.com).
 
@@ -271,10 +272,14 @@ from the ticket text, it opens the real page and picks real selectors.
    base did not fill. Skipped entirely when there were none.
 5. **Phase B:** generate `tests/generated/aiqa-N.spec.ts` (each ticket step is a `test.step`).
 6. Run with the Playwright CLI and fix until green, without reopening the browser.
-7. Pass the quality gates (custom gate, ESLint, Prettier, types).
-8. Append anything newly discovered to `knowledge/`, so the next ticket is cheaper.
-9. Append the result to the ticket description.
-10. Move it to **Done**.
+7. Prove the test can fail (`npm run mutation -- AIQA-N`): disable each action it uses and
+   require it to go red.
+8. Pass the quality gates (custom gate, ESLint, Prettier, types).
+9. Append anything newly discovered to `knowledge/`, so the next ticket is cheaper.
+10. Open a pull request (`npm run pr -- AIQA-N`). Never commit to `main`.
+11. Append to the ticket what is actually true: the spec is on a branch, not in `main`,
+    and a pull request is waiting.
+12. Move it to **In Review** and stop. `Done` belongs to whoever merges.
 
 ## Tech stack
 

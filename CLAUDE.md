@@ -75,9 +75,16 @@ element, and record what you find in the knowledge base afterwards.
 10. **Propose the work, do not merge it:** `npm run pr -- AIQA-N`. This puts the spec and any
     knowledge-base change on the branch `agent/aiqa-N` and raises a pull request.
     **Never commit to `main` and never merge your own pull request.** A human reviews it.
-11. **Append the result to Jira:** `npx tsx src/jira.ts append AIQA-N "Automated test:
-<what was automated>. File: tests/generated/aiqa-N.spec.ts. Run: PASSED."`.
-12. **Close it:** `npx tsx src/jira.ts move AIQA-N "Done"`.
+11. **Report to Jira what is actually true:** `npx tsx src/jira.ts append AIQA-N "Automated
+test proposed: <what was automated>. File: tests/generated/aiqa-N.spec.ts (on branch
+agent/aiqa-N, NOT yet in main). Local run: PASSED. Awaiting human review of PR #<n>."`.
+    The spec lives on a branch that a human may reject. Writing "Run: PASSED" without
+    saying where the file is claims a test that main does not have, and a board that
+    reports a test nobody can run is worse than a board with an open ticket.
+12. **Hand it over, do not close it:** `npx tsx src/jira.ts move AIQA-N "In Review"`.
+    **Never move a ticket to `Done`.** Done means merged, and merging is not yours: the
+    same human who approves the pull request closes the ticket. Your work ends at
+    `In Review` with a pull request waiting.
 
 ## Test authoring rules
 
@@ -112,6 +119,11 @@ element, and record what you find in the knowledge base afterwards.
 - The ticket description must only be **APPENDED** to. NEVER overwrite existing content.
 - Move statuses only through `src/jira.ts` (it performs correct Jira transitions).
 - If the required transition is not available, list the available ones and ask the human.
+- **`Done` is not a status you may set.** The furthest you go is `In Review`. On this
+  board that is transition id 31; `Done` is 41 and belongs to the human who merges.
+- Never write a status into Jira that the repository does not support. A ticket reading
+  `Done` while the spec sits on an unmerged branch is a false record, and it is the same
+  defect as a green test that asserts nothing: both report success nobody verified.
 
 ## Human in the loop (important)
 
@@ -122,3 +134,5 @@ element, and record what you find in the knowledge base afterwards.
 - Never commit `.env` and never print the Jira token to logs/responses.
 - Never push to `main`, never merge a pull request, and never approve your own. The branch
   and the pull request are the whole of your write access to the repository.
+- Closing the ticket is the merge signal, so it belongs to the same human. You stop at
+  `In Review` with a pull request open, and say plainly that a human decides next.

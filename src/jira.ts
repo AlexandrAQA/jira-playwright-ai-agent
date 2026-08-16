@@ -188,6 +188,28 @@ export function pickTransition(
 }
 
 /**
+ * Statuses the agent is not allowed to set, whatever the playbook says.
+ *
+ * On this board `Done` means the pull request was merged, and merging is a
+ * human decision that the agent can neither make nor observe. It once closed a
+ * ticket with "Run: PASSED" for a spec that a human then rejected: the branch
+ * was deleted, and the board went on reporting a test that existed nowhere.
+ *
+ * That is the same defect as a green test that asserts nothing. Both report a
+ * success that nobody verified, and both are believed because of where they are
+ * written rather than because of what happened.
+ *
+ * The rule was in the playbook in prose first. Prose is advice; this is the
+ * check, and it lives here rather than in the playbook because every path to
+ * the board goes through `moveIssue`.
+ */
+const HUMAN_ONLY_STATUSES = ['done', 'closed', 'resolved', 'complete', 'completed'];
+
+export function isHumanOnlyStatus(statusName: string): boolean {
+  return HUMAN_ONLY_STATUSES.includes(statusName.trim().toLowerCase());
+}
+
+/**
  * Build the description that results from appending text to an existing one.
  *
  * The project's hardest rule lives here: a ticket description is only ever
@@ -238,8 +260,26 @@ export async function getTransitions(
   }));
 }
 
-/** Move a ticket to a status by name ("In Progress", "Done", etc.). */
-export async function moveIssue(key: string, statusName: string): Promise<void> {
+/**
+ * Move a ticket to a status by name ("In Progress", "In Review", etc.).
+ *
+ * `mergedByHuman` is the escape hatch for the person who actually merged the
+ * pull request. It is a flag a human types, not one the agent can conclude.
+ */
+export async function moveIssue(
+  key: string,
+  statusName: string,
+  { mergedByHuman = false } = {},
+): Promise<void> {
+  if (isHumanOnlyStatus(statusName) && !mergedByHuman) {
+    throw new Error(
+      `Refusing to move ${key} to "${statusName}". On this board that status means the ` +
+        `pull request was merged, and the agent neither merges nor can see that a human did. ` +
+        `Move it to "In Review" instead and leave the pull request open. ` +
+        `If you are the human who merged it, rerun with --merged.`,
+    );
+  }
+
   const { data } = await api().get<TransitionsResponse>(`/issue/${key}/transitions`);
   const t = pickTransition(data.transitions, statusName);
   if (!t) {
@@ -326,10 +366,18 @@ async function main(): Promise<void> {
         console.log(JSON.stringify(ts, null, 2));
         break;
       }
-      case 'move':
-        await moveIssue(args[0], args.slice(1).join(' '));
-        console.log(`OK: ${args[0]} -> ${args.slice(1).join(' ')}`);
+      case 'move': {
+        // The flag is a human saying "I merged it", so it must not reach the
+        // status name and quietly become part of a transition lookup.
+        const mergedByHuman = args.includes('--merged');
+        const status = args
+          .slice(1)
+          .filter((a) => a !== '--merged')
+          .join(' ');
+        await moveIssue(args[0], status, { mergedByHuman });
+        console.log(`OK: ${args[0]} -> ${status}`);
         break;
+      }
       case 'append':
         await appendToDescription(args[0], args.slice(1).join(' '));
         console.log(`OK: appended to ${args[0]}`);
@@ -356,7 +404,8 @@ async function main(): Promise<void> {
             '  get <KEY>                read a ticket',
             '  desc <KEY>               description only',
             '  transitions <KEY>        available status transitions',
-            '  move <KEY> "<Status>"    move to a status (In Progress / Done)',
+            '  move <KEY> "<Status>"    move to a status (In Progress / In Review)',
+            '  move <KEY> "Done" --merged   close a ticket. Humans only: Done means merged',
             '  append <KEY> "<text>"    append to the description',
             '  search "<JQL>"           search by JQL',
             '  label <label>            tickets with a label in the project from .env',

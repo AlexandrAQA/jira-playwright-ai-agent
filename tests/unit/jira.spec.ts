@@ -16,6 +16,8 @@ import {
   type AdfNode,
   adfToText,
   appendedDescription,
+  isHumanOnlyStatus,
+  moveIssue,
   pickTransition,
   textToParagraphs,
   toJiraIssue,
@@ -135,6 +137,39 @@ test.describe('pickTransition', () => {
 
   test('survives a transition with no destination', () => {
     expect(pickTransition([{ id: '1', name: 'Odd' }], 'Done')).toBeUndefined();
+  });
+});
+
+test.describe('isHumanOnlyStatus', () => {
+  // The agent once closed a ticket as Done with "Run: PASSED" for a spec that
+  // a human then rejected. The pull request was closed and the branch deleted,
+  // so the board went on advertising a test that existed nowhere. Done is a
+  // claim about a merge, and the agent cannot observe a merge.
+  test('reserves the closing statuses for a human', () => {
+    expect(isHumanOnlyStatus('Done')).toBe(true);
+    expect(isHumanOnlyStatus('  done  ')).toBe(true);
+    expect(isHumanOnlyStatus('Closed')).toBe(true);
+    expect(isHumanOnlyStatus('Resolved')).toBe(true);
+  });
+
+  test('leaves the statuses the agent legitimately drives', () => {
+    expect(isHumanOnlyStatus('In Progress')).toBe(false);
+    expect(isHumanOnlyStatus('In Review')).toBe(false);
+    expect(isHumanOnlyStatus('To Do')).toBe(false);
+  });
+});
+
+test.describe('moveIssue', () => {
+  test('refuses to close a ticket before it has touched the network', async () => {
+    // The guard has to sit in front of the request, not inside the response
+    // handling: this test passes with no Jira credentials at all, which is the
+    // proof that nothing reached the board.
+    await expect(moveIssue('AIQA-10', 'Done')).rejects.toThrow(/Refusing to move AIQA-10/);
+  });
+
+  test('names the status to use instead, rather than only saying no', async () => {
+    // A gate that blocks without pointing anywhere is a gate people route around.
+    await expect(moveIssue('AIQA-10', 'Done')).rejects.toThrow(/In Review/);
   });
 });
 
