@@ -48,6 +48,6 @@
     "dotenv": "^17.4.2"
   },
   "optionalDependencies": {
-    "@huggingface/transformers": "^4.2.0"
+    "@huggingface/transformers": "^4.3.0"
   }
 }
